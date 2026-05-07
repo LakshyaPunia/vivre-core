@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 
-export const Route = createFileRoute("/patients/$patientId/location")({
+export const Route = createFileRoute("/patients_/$patientId/location")({
   head: () => ({ meta: [{ title: "Location — Vivre" }] }),
   component: LocationPage,
 });
