@@ -1,20 +1,19 @@
 import { motion } from "framer-motion";
 import { Link } from "@tanstack/react-router";
-import { HealthScoreRing } from "./HealthScoreRing";
 import { Heart, Activity, Droplet } from "lucide-react";
+import { motion as m, useMotionValue, useTransform, animate } from "framer-motion";
+import { useEffect, useState } from "react";
 
-const bandColor = (s: number) => {
-  if (s < 40) return "from-red-500/40 to-red-700/40 ring-red-400/50";
-  if (s < 60) return "from-amber-500/40 to-amber-700/40 ring-amber-400/50";
-  if (s < 75) return "from-blue-500/40 to-blue-700/40 ring-blue-400/50";
-  if (s < 90) return "from-emerald-500/40 to-emerald-700/40 ring-emerald-400/50";
-  return "from-cyan-400/40 to-cyan-600/40 ring-cyan-300/60";
+const scoreColor = (s: number) => {
+  if (s < 40) return { hex: "#EF4444", band: "Critical" };
+  if (s < 60) return { hex: "#F59E0B", band: "Poor" };
+  if (s < 75) return { hex: "#3B82F6", band: "Fair" };
+  if (s < 90) return { hex: "#10B981", band: "Good" };
+  return { hex: "#06B6D4", band: "Excellent" };
 };
 
-const dotClass = (s?: string) =>
-  s === "crit" ? "bg-status-crit shadow-[0_0_8px_var(--status-crit-glow)]"
-  : s === "warn" ? "bg-status-warn shadow-[0_0_8px_var(--status-warn-glow)]"
-  : "bg-status-ok shadow-[0_0_8px_var(--status-ok-glow)]";
+const statusHex = (s?: string) =>
+  s === "crit" ? "#EF4444" : s === "warn" ? "#F59E0B" : "#10B981";
 
 function relativeTime(iso?: string) {
   if (!iso) return "just now";
@@ -25,8 +24,54 @@ function relativeTime(iso?: string) {
   return `${Math.round(diff / 86400)}d ago`;
 }
 
+function BigRing({ score }: { score: number }) {
+  const size = 140;
+  const stroke = 10;
+  const r = (size - stroke) / 2;
+  const c = 2 * Math.PI * r;
+  const { hex, band } = scoreColor(score);
+  const mv = useMotionValue(0);
+  const offset = useTransform(mv, (v) => c - (v / 100) * c);
+  const [display, setDisplay] = useState(0);
+  useEffect(() => {
+    const ctrl = animate(mv, score, {
+      duration: 1.2,
+      ease: [0.16, 1, 0.3, 1],
+      onUpdate: (v) => setDisplay(Math.round(v)),
+    });
+    return ctrl.stop;
+  }, [score, mv]);
+  return (
+    <div className="relative inline-flex items-center justify-center" style={{ width: size, height: size }}>
+      <div
+        className="absolute inset-0 rounded-full"
+        style={{ background: `radial-gradient(circle, ${hex}26 0%, transparent 70%)`, opacity: 0.6, filter: "blur(8px)" }}
+      />
+      <svg width={size} height={size} className="relative -rotate-90">
+        <circle cx={size / 2} cy={size / 2} r={r} stroke="#1a2235" strokeWidth={stroke} fill="none" />
+        <m.circle
+          cx={size / 2} cy={size / 2} r={r}
+          stroke={hex} strokeWidth={stroke} fill="none" strokeLinecap="round"
+          strokeDasharray={c}
+          style={{ strokeDashoffset: offset, filter: `drop-shadow(0 0 10px ${hex})` }}
+        />
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <span className="font-mono font-bold tabular-nums text-text-primary" style={{ fontSize: 36, lineHeight: 1 }}>
+          {display}
+        </span>
+        <span className="mt-1.5 text-[10px] font-medium uppercase text-text-secondary" style={{ letterSpacing: "0.15em", color: hex }}>
+          {band}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 export function PatientCard({ patient }: { patient: any }) {
   const score = Math.round(patient.health_score ?? 0);
+  const { hex: scoreHex } = scoreColor(score);
+  const isCritical = score < 40 || patient.has_unack_alert;
   const initials = String(patient.name ?? "??")
     .split(" ")
     .map((s) => s[0])
@@ -34,51 +79,84 @@ export function PatientCard({ patient }: { patient: any }) {
     .slice(0, 2)
     .toUpperCase();
   const vitals = patient.vitals ?? {};
-  const hasAlert = !!patient.has_unack_alert || !!patient.active_alert;
+  const cardShadow = isCritical
+    ? "0 8px 32px rgba(0,0,0,0.4), 0 0 0 1px rgba(239,68,68,0.2), 0 0 40px rgba(239,68,68,0.08)"
+    : "0 8px 32px rgba(0,0,0,0.4)";
   return (
     <motion.div
       variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } }}
-      whileHover={{ scale: 1.02, y: -2 }}
-      transition={{ duration: 0.2 }}
-      className="relative"
+      whileHover={{ scale: 1.025 }}
+      transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+      className="relative self-start"
     >
-      {hasAlert && (
-        <span className="absolute right-3 top-3 z-10 flex h-3 w-3">
-          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-500 opacity-75" />
-          <span className="relative inline-flex h-3 w-3 rounded-full bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.8)]" />
-        </span>
-      )}
       <Link
         to="/patients/$patientId"
         params={{ patientId: patient.id }}
-        className="block rounded-2xl border border-white/[0.08] bg-[#162035]/70 p-5 backdrop-blur-xl transition hover:border-cyan-400/60 hover:shadow-[0_8px_32px_-8px_var(--cyan-glow)]"
+        className="group flex h-full min-h-[320px] flex-col rounded-[20px] border transition-colors duration-200 hover:border-cyan-400/25"
+        style={{
+          background: "rgba(15, 22, 40, 0.8)",
+          backdropFilter: "blur(24px)",
+          WebkitBackdropFilter: "blur(24px)",
+          borderColor: "rgba(255,255,255,0.07)",
+          boxShadow: cardShadow,
+          padding: 28,
+        }}
       >
-        <div className="flex items-start gap-4">
-          <div className={`flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br ring-2 font-mono text-sm font-semibold ${bandColor(score)}`}>
-            {initials}
+        {/* TOP ROW */}
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div
+              className="flex h-10 w-10 items-center justify-center rounded-full font-mono text-[13px] font-semibold text-white"
+              style={{ background: `linear-gradient(135deg, ${scoreHex}55, ${scoreHex}22)`, border: `1px solid ${scoreHex}55` }}
+            >
+              {initials}
+            </div>
+            <div className="min-w-0">
+              <h3 className="font-sans text-[17px] font-semibold leading-tight text-text-primary">{patient.name}</h3>
+              <p className="mt-0.5 text-[11px] text-text-secondary">
+                {patient.age} · {patient.city}
+              </p>
+            </div>
           </div>
-          <div className="min-w-0 flex-1">
-            <h3 className="truncate font-display text-lg font-semibold text-text-primary">{patient.name}</h3>
-            <p className="text-xs text-text-secondary">
-              {patient.age} · {patient.city}
-            </p>
-          </div>
-          <HealthScoreRing score={score} size={84} strokeWidth={6} />
+          <span className="relative inline-flex h-2.5 w-2.5">
+            {isCritical && <span className="absolute inset-0 animate-ping rounded-full bg-red-500/70" />}
+            <span
+              className="relative inline-flex h-2.5 w-2.5 rounded-full"
+              style={{ background: scoreHex, boxShadow: `0 0 10px ${scoreHex}` }}
+            />
+          </span>
         </div>
 
-        <div className="mt-4 grid grid-cols-3 gap-2 rounded-xl bg-black/20 p-3">
-          <Stat icon={Heart} label="HR" value={vitals.heart_rate?.value} unit="bpm" status={vitals.heart_rate?.status} />
+        {/* HERO RING */}
+        <div className="my-5 flex flex-1 items-center justify-center">
+          <BigRing score={score} />
+        </div>
+
+        {/* DIVIDER */}
+        <div className="-mx-7 h-px" style={{ background: "rgba(255,255,255,0.06)" }} />
+
+        {/* VITALS */}
+        <div className="mt-5 grid grid-cols-3 gap-2">
+          <Stat icon={Heart} label="Heart Rate" value={vitals.heart_rate?.value} unit="bpm" status={vitals.heart_rate?.status} />
           <Stat icon={Activity} label="SpO₂" value={vitals.spo2?.value} unit="%" status={vitals.spo2?.status} />
           <Stat icon={Droplet} label="BP" value={vitals.blood_pressure?.value} unit="mmHg" status={vitals.blood_pressure?.status} />
         </div>
 
-        <div className="mt-3 flex items-center justify-between gap-2">
+        {/* BOTTOM */}
+        <div className="mt-5 flex items-center justify-between gap-2">
           {patient.predicted_condition ? (
-            <span className="inline-block rounded-full bg-violet-500/20 px-2 py-0.5 text-[10px] font-medium text-violet-300">
+            <span
+              className="inline-block rounded-full px-2.5 py-1 text-[11px] font-medium"
+              style={{
+                background: "rgba(6,182,212,0.12)",
+                border: "0.5px solid rgba(6,182,212,0.4)",
+                color: "#22d3ee",
+              }}
+            >
               {patient.predicted_condition}
             </span>
           ) : <span />}
-          <span className="text-[10px] text-text-muted">{relativeTime(patient.updated_at)}</span>
+          <span className="text-[11px] text-text-secondary/70">{relativeTime(patient.updated_at)}</span>
         </div>
       </Link>
     </motion.div>
@@ -86,15 +164,15 @@ export function PatientCard({ patient }: { patient: any }) {
 }
 
 function Stat({ icon: Icon, label, value, unit, status }: any) {
+  const color = statusHex(status);
   return (
-    <div className="flex flex-col gap-1">
-      <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider text-text-muted">
-        <span className={`h-1.5 w-1.5 rounded-full ${dotClass(status)}`} />
-        <Icon className="h-2.5 w-2.5" /> {label}
+    <div className="flex flex-col items-center gap-1 text-center">
+      <Icon className="h-4 w-4 text-text-secondary/60" />
+      <div className="font-mono leading-none" style={{ color, fontSize: 18, fontWeight: 500 }}>
+        {value ?? "—"}
+        <span className="ml-0.5 text-[10px] text-text-secondary/60">{unit}</span>
       </div>
-      <div className="font-mono text-sm text-text-primary">
-        {value ?? "—"}<span className="ml-0.5 text-[9px] text-text-muted">{unit}</span>
-      </div>
+      <div className="text-[10px] text-text-secondary/60">{label}</div>
     </div>
   );
 }
