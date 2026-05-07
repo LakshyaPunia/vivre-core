@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useEffect } from "react";
 import {
   Heart, Wind, Gauge, Thermometer, Droplet, Activity,
-  ArrowLeft, MapPin, Phone, Shield,
+  ArrowLeft, Phone, Shield, Video, Clock,
 } from "lucide-react";
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
 import { api } from "@/lib/api";
@@ -54,6 +54,14 @@ function PatientDetail() {
 
   const p = patient.data;
   const score = Math.round(p?.health_score ?? 0);
+  const scoreColor =
+    score < 40 ? "#EF4444" :
+    score < 60 ? "#F59E0B" :
+    score < 75 ? "#3B82F6" :
+    score < 90 ? "#10B981" : "#06B6D4";
+  const lastUpdated = p?.updated_at
+    ? new Date(p.updated_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+    : "just now";
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-6 md:px-8 md:py-10">
@@ -62,48 +70,76 @@ function PatientDetail() {
       </Link>
 
       {/* HERO */}
-      <section className="mt-5 rounded-3xl glass glass-cyan p-6 md:p-8">
-        <div className="flex flex-col items-center gap-6 md:flex-row md:items-center md:gap-8">
-          <HealthScoreRing score={score} size={180} strokeWidth={10} />
-          <div className="flex-1 text-center md:text-left">
+      <section
+        className="relative mt-5 overflow-hidden rounded-3xl border p-6 md:p-10"
+        style={{
+          background: "rgba(15,22,40,0.8)",
+          backdropFilter: "blur(24px)",
+          WebkitBackdropFilter: "blur(24px)",
+          borderColor: "rgba(255,255,255,0.07)",
+          boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
+        }}
+      >
+        <div
+          className="pointer-events-none absolute -top-24 -left-24 h-96 w-96 rounded-full"
+          style={{ background: `radial-gradient(circle, ${scoreColor} 0%, transparent 65%)`, opacity: 0.12 }}
+        />
+        <div className="relative flex flex-col-reverse items-start gap-8 md:flex-row md:items-center md:justify-between">
+          <div className="flex-1">
             {patient.isLoading ? (
-              <Skeleton className="mx-auto h-8 w-56 md:mx-0" />
+              <Skeleton className="h-9 w-56" />
             ) : (
               <>
-                <h1 className="font-display text-3xl font-semibold md:text-4xl">{p?.name}</h1>
-                <p className="mt-1 text-sm text-text-secondary">
-                  {p?.age} · {p?.city}
+                <h1 className="font-display text-text-primary" style={{ fontSize: 36, fontWeight: 700, letterSpacing: "-0.02em", lineHeight: 1.1 }}>
+                  {p?.name}
+                </h1>
+                <p className="mt-2 text-sm text-text-secondary">
+                  {p?.age} years · {p?.city}
+                  {p?.emergency_contact?.phone && (
+                    <span className="ml-2 inline-flex items-center gap-1.5 text-text-secondary">
+                      <Phone className="h-3 w-3" /> {p.emergency_contact.phone}
+                    </span>
+                  )}
                 </p>
-                {p?.predicted_condition && (
-                  <span className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-violet-500/15 px-3 py-1 text-xs font-medium text-violet-300">
-                    <Shield className="h-3 w-3" /> {p.predicted_condition}
+                <div className="mt-4 flex flex-wrap items-center gap-2">
+                  {p?.predicted_condition && (
+                    <span
+                      className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-medium"
+                      style={{ background: "rgba(139,92,246,0.15)", border: "0.5px solid rgba(139,92,246,0.4)", color: "#c4b5fd" }}
+                    >
+                      <Shield className="h-3 w-3" /> {p.predicted_condition}
+                    </span>
+                  )}
+                  <span className="inline-flex items-center gap-1.5 text-[11px] text-text-secondary">
+                    <Clock className="h-3 w-3" /> Last reading {lastUpdated}
                   </span>
-                )}
+                </div>
+                <div className="mt-6 flex flex-wrap gap-3">
+                  {p?.emergency_contact?.phone && (
+                    <motion.a
+                      whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }}
+                      href={`tel:${p.emergency_contact.phone}`}
+                      className="inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-medium text-cyan-300"
+                      style={{ borderColor: "rgba(6,182,212,0.4)", background: "rgba(6,182,212,0.06)" }}
+                    >
+                      <Phone className="h-4 w-4" /> Call {p.emergency_contact.name?.split(" ")[0] ?? "Contact"}
+                    </motion.a>
+                  )}
+                  <Link to="/doctors" className="block">
+                    <motion.span
+                      whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }}
+                      className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium text-white"
+                      style={{ background: "linear-gradient(135deg, #8b5cf6, #6d28d9)", boxShadow: "0 8px 24px rgba(139,92,246,0.35)" }}
+                    >
+                      <Video className="h-4 w-4" /> Connect Doctor
+                    </motion.span>
+                  </Link>
+                </div>
               </>
             )}
-            {p?.emergency_contact && (
-              <div className="mt-5 flex flex-col items-center gap-3 sm:flex-row md:justify-start">
-                <div className="text-xs text-text-muted">
-                  <p>Emergency contact</p>
-                  <p className="text-text-secondary">{p.emergency_contact.name}</p>
-                </div>
-                <motion.a
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  href={`tel:${p.emergency_contact.phone}`}
-                  className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-br from-cyan-400 to-cyan-600 px-4 py-2 text-sm font-medium text-[#06121a]"
-                >
-                  <Phone className="h-4 w-4" /> Call
-                </motion.a>
-                <Link
-                  to="/patients/$patientId/location"
-                  params={{ patientId }}
-                  className="inline-flex items-center gap-2 rounded-xl bg-white/5 px-4 py-2 text-sm text-text-secondary hover:text-text-primary"
-                >
-                  <MapPin className="h-4 w-4" /> Location
-                </Link>
-              </div>
-            )}
+          </div>
+          <div className="shrink-0">
+            <HealthScoreRing score={score} size={200} strokeWidth={12} />
           </div>
         </div>
       </section>
