@@ -185,7 +185,7 @@ function MobileTabBar() {
           {({ isActive }) => (
             <>
               <motion.span
-                animate={isActive ? { scale: [1, 1.2, 1] } : { scale: 1 }}
+                animate={{ scale: isActive ? 1.15 : 1 }}
                 transition={{ type: "spring", stiffness: 500, damping: 20 }}
                 className="block"
               >
