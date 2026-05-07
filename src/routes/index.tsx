@@ -1,56 +1,114 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { motion, AnimatePresence } from "framer-motion";
+import { AlertOctagon, BellRing, Plus, Sun } from "lucide-react";
+import { useEffect } from "react";
 import { api } from "@/lib/api";
 import { supabase } from "@/lib/supabase";
+import { PatientCard } from "@/components/vivre/PatientCard";
+import { Skeleton } from "@/components/vivre/Skeleton";
+import { Chatbot } from "@/components/vivre/Chatbot";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
       { title: "Vivre — Dashboard" },
-      { name: "description", content: "Live health overview for your loved ones." },
+      { name: "description", content: "Live overview of everyone you care about." },
     ],
   }),
-  component: Index,
+  component: Dashboard,
 });
 
-function Index() {
-  const [patients, setPatients] = useState<any[]>([]);
-  const [error, setError] = useState<string | null>(null);
+function Dashboard() {
+  const { data: patients = [], isLoading, refetch } = useQuery({
+    queryKey: ["patients"],
+    queryFn: () => api.listPatients(),
+  });
 
   useEffect(() => {
-    api.listPatients().then(setPatients).catch((e) => setError(e.message));
     const channel = supabase
       .channel("vitals-feed")
-      .on("postgres_changes", { event: "*", schema: "public", table: "vitals_readings" }, () => {
-        api.listPatients().then(setPatients).catch(() => {});
-      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "vitals_readings" }, () => refetch())
       .subscribe();
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, []);
+    return () => { supabase.removeChannel(channel); };
+  }, [refetch]);
+
+  const criticalCount = patients.filter((p: any) => (p.health_score ?? 100) < 40).length;
 
   return (
-    <div>
-      <header>
-        <h1>Vivre Dashboard</h1>
-        <nav>
-          <Link to="/alerts">Alerts</Link> | <Link to="/doctors">Doctors</Link> |{" "}
-          <Link to="/settings">Settings</Link>
-        </nav>
+    <div className="mx-auto max-w-6xl px-4 py-6 md:px-8 md:py-10">
+      <header className="flex items-center justify-between">
+        <div>
+          <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-text-secondary">
+            <Sun className="h-3.5 w-3.5 text-cyan-400" /> Good morning
+          </div>
+          <h1 className="font-display text-3xl font-light text-text-primary md:text-4xl">
+            <span className="font-semibold">Sarah</span>
+          </h1>
+          <p className="mt-1 text-sm text-text-secondary">
+            {patients.length} loved {patients.length === 1 ? "one" : "ones"} · monitoring live
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <motion.button
+            whileHover={{ scale: 1.08 }}
+            whileTap={{ scale: 0.92 }}
+            className="relative flex h-10 w-10 items-center justify-center rounded-xl glass"
+            aria-label="Notifications"
+          >
+            <BellRing className="h-4 w-4 text-text-secondary" />
+            {criticalCount > 0 && (
+              <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-status-crit px-1 text-[9px] font-bold text-white">
+                {criticalCount}
+              </span>
+            )}
+          </motion.button>
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-cyan-400 to-violet-500 font-semibold text-white">
+            S
+          </div>
+        </div>
       </header>
-      {error && <p>Error: {error}</p>}
-      <ul>
-        {patients.map((p) => (
-          <li key={p.id}>
-            <Link to="/patients/$patientId" params={{ patientId: p.id }}>
-              {p.name} — score {p.health_score ?? "—"}
-            </Link>
-          </li>
-        ))}
-      </ul>
-      <button>Add Patient</button>
+
+      <AnimatePresence>
+        {criticalCount > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: -16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -16 }}
+            className="mt-6 flex items-center gap-3 rounded-2xl glass glass-crit p-4"
+          >
+            <AlertOctagon className="h-5 w-5 text-status-crit" />
+            <p className="flex-1 text-sm text-text-primary">
+              <span className="font-semibold">{criticalCount}</span> patient
+              {criticalCount > 1 ? "s require" : " requires"} immediate attention.
+            </p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <motion.div
+        variants={{ show: { transition: { staggerChildren: 0.08 } } }}
+        initial="hidden"
+        animate="show"
+        className="mt-8 grid gap-5 sm:grid-cols-2 xl:grid-cols-3"
+      >
+        {isLoading
+          ? Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-48 rounded-2xl" />)
+          : patients.map((p: any) => <PatientCard key={p.id} patient={p} />)}
+      </motion.div>
+
+      <motion.button
+        initial={{ scale: 0 }}
+        animate={{ scale: 1 }}
+        transition={{ type: "spring", stiffness: 300, damping: 18, delay: 0.6 }}
+        whileHover={{ scale: 1.08 }}
+        whileTap={{ scale: 0.92 }}
+        className="fixed bottom-44 left-4 z-40 flex items-center gap-2 rounded-full bg-cyan-500 px-4 py-3 text-sm font-medium text-[#06121a] shadow-[0_8px_24px_rgba(6,182,212,0.45)] md:bottom-6"
+      >
+        <Plus className="h-4 w-4" /> Add patient
+      </motion.button>
+
+      <Chatbot />
     </div>
   );
 }
