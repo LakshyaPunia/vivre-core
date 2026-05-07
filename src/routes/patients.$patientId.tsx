@@ -122,7 +122,7 @@ function PatientDetail() {
                       className="inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-medium text-cyan-300"
                       style={{ borderColor: "rgba(6,182,212,0.4)", background: "rgba(6,182,212,0.06)" }}
                     >
-                      <Phone className="h-4 w-4" /> Call {p.emergency_contact.name?.split(" ")[0] ?? "Contact"}
+                      <Phone className="h-4 w-4" /> Call Lakshya
                     </motion.a>
                   )}
                   <Link to="/doctors" className="block">
