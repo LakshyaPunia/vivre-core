@@ -15,7 +15,6 @@ import {
   MapPin,
   Video,
   Settings as SettingsIcon,
-  Activity,
 } from "lucide-react";
 
 import appCss from "../styles.css?url";
@@ -71,7 +70,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       {
         rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=Outfit:wght@300;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap",
+        href: "https://fonts.googleapis.com/css2?family=Outfit:wght@300;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap",
       },
     ],
   }),
@@ -135,30 +134,31 @@ function RootComponent() {
 
 function Sidebar() {
   return (
-    <aside className="fixed inset-y-0 left-0 z-30 hidden w-[240px] border-r border-border-subtle bg-bg-surface/60 backdrop-blur-xl md:flex md:flex-col">
-      <div className="flex items-center gap-2 px-6 py-6">
+    <aside className="fixed inset-y-0 left-0 z-30 hidden w-[240px] border-r bg-[#0b1220]/70 backdrop-blur-xl md:flex md:flex-col" style={{ borderRightColor: "rgba(255,255,255,0.05)" }}>
+      <div className="flex items-center gap-2.5 px-6 py-7">
         <span className="relative inline-flex h-2 w-2">
-          <span className="absolute inset-0 animate-ping rounded-full bg-cyan-400 opacity-75" />
-          <span className="relative inline-flex h-2 w-2 rounded-full bg-cyan-500" />
+          <span className="relative inline-flex h-2 w-2 rounded-full bg-cyan-500 animate-pulse-dot shadow-[0_0_10px_rgba(6,182,212,0.7)]" />
         </span>
-        <span className="font-display text-2xl font-semibold tracking-tight">Vivre</span>
+        <span className="font-display font-bold tracking-tight text-text-primary" style={{ fontSize: 22 }}>Vivre</span>
       </div>
-      <nav className="flex-1 space-y-1 px-3">
+      <nav className="flex-1 space-y-0.5 px-3">
         {NAV.map(({ to, label, icon: Icon }) => (
           <Link
             key={to}
             to={to}
             activeOptions={{ exact: to === "/" }}
-            className="group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-text-secondary transition hover:bg-white/5 hover:text-text-primary data-[status=active]:bg-cyan-500/10 data-[status=active]:text-text-primary data-[status=active]:shadow-[inset_2px_0_0_0_#06b6d4]"
+            className="group relative flex items-center gap-3 rounded-lg px-4 py-2.5 text-[13px] font-medium text-[#8892A4] transition hover:bg-white/[0.03] hover:text-text-primary data-[status=active]:bg-[rgba(6,182,212,0.08)] data-[status=active]:text-text-primary data-[status=active]:shadow-[inset_2px_0_0_0_#06B6D4]"
           >
             <Icon className="h-4 w-4" />
             <span>{label}</span>
           </Link>
         ))}
       </nav>
-      <div className="px-6 py-5 text-xs text-text-muted">
-        <div className="flex items-center gap-2">
-          <Activity className="h-3.5 w-3.5 text-status-ok" />
+      <div className="px-6 py-5">
+        <div className="flex items-center gap-2 text-[12px] font-normal text-[#8892A4]">
+          <span className="inline-flex h-2 w-2">
+            <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse-dot shadow-[0_0_8px_rgba(16,185,129,0.6)]" />
+          </span>
           All systems live
         </div>
       </div>
