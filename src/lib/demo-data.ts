@@ -7,7 +7,7 @@ export const DEMO_PATIENTS = [
     health_score: 78,
     predicted_condition: "Stable hypertension",
     updated_at: new Date().toISOString(),
-    emergency_contact: { name: "Sarah Thomas", phone: "+1 312 555 0143" },
+    emergency_contact: { name: "Lakshya Punia", phone: "+1 312 555 0143" },
   },
   {
     id: "00000000-0000-0000-0000-000000000002",
