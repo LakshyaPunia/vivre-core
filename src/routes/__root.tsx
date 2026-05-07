@@ -15,7 +15,6 @@ import {
   MapPin,
   Video,
   Settings as SettingsIcon,
-  Activity,
 } from "lucide-react";
 
 import appCss from "../styles.css?url";
