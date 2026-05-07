@@ -1,7 +1,6 @@
-import { motion } from "framer-motion";
+import { motion, useMotionValue, useTransform, animate } from "framer-motion";
 import { Link } from "@tanstack/react-router";
 import { Heart, Activity, Droplet } from "lucide-react";
-import { motion as m, useMotionValue, useTransform, animate } from "framer-motion";
 import { useEffect, useState } from "react";
 
 const scoreColor = (s: number) => {
@@ -49,7 +48,7 @@ function BigRing({ score }: { score: number }) {
       />
       <svg width={size} height={size} className="relative -rotate-90">
         <circle cx={size / 2} cy={size / 2} r={r} stroke="#1a2235" strokeWidth={stroke} fill="none" />
-        <m.circle
+        <motion.circle
           cx={size / 2} cy={size / 2} r={r}
           stroke={hex} strokeWidth={stroke} fill="none" strokeLinecap="round"
           strokeDasharray={c}
