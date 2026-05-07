@@ -60,9 +60,17 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Vivre — Live fully, stay connected." },
+      { title: "Vivre - Live fully, stay connected." },
       { name: "description", content: "AI-powered health monitoring for the people you love." },
       { name: "theme-color", content: "#080C14" },
+      { property: "og:title", content: "Vivre - Live fully, stay connected." },
+      { name: "twitter:title", content: "Vivre - Live fully, stay connected." },
+      { property: "og:description", content: "AI-powered health monitoring for the people you love." },
+      { name: "twitter:description", content: "AI-powered health monitoring for the people you love." },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/3290248a-248c-419a-a8d4-064c30181163/id-preview-cea99507--c2ae9ad5-ac89-4a73-b90f-709421800a27.lovable.app-1778166343568.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/3290248a-248c-419a-a8d4-064c30181163/id-preview-cea99507--c2ae9ad5-ac89-4a73-b90f-709421800a27.lovable.app-1778166343568.png" },
+      { name: "twitter:card", content: "summary_large_image" },
+      { property: "og:type", content: "website" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
