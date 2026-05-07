@@ -3,7 +3,6 @@ import { useQuery } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { AlertOctagon, BellRing, Plus, Sun } from "lucide-react";
 import { useEffect } from "react";
-import { api } from "@/lib/api";
 import { supabase } from "@/lib/supabase";
 import { PatientCard } from "@/components/vivre/PatientCard";
 import { Skeleton } from "@/components/vivre/Skeleton";
