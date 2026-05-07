@@ -75,16 +75,30 @@ function Dashboard() {
   const criticalCount = patients.filter((p: any) => (p.health_score ?? 100) < 40).length;
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-6 md:px-8 md:py-10">
-      <header className="flex items-center justify-between">
+    <div className="mx-auto max-w-6xl px-4 md:px-10" style={{ paddingTop: 48, paddingBottom: 48 }}>
+      <header className="flex items-start justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-text-secondary">
-            <Sun className="h-3.5 w-3.5 text-cyan-400" /> Good morning
+          <div
+            className="flex items-center gap-2 text-[11px] font-medium uppercase"
+            style={{ letterSpacing: "0.2em", color: "#06B6D4" }}
+          >
+            <motion.span
+              animate={{ rotate: [0, 12, -8, 0] }}
+              transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+              className="inline-flex"
+            >
+              <Sun className="h-3.5 w-3.5" />
+            </motion.span>
+            Good morning
           </div>
-          <h1 className="font-display text-3xl font-light text-text-primary md:text-4xl">
-            <span className="font-semibold">Sarah</span>
+          <h1 className="font-display mt-2 text-text-primary" style={{ fontSize: 48, fontWeight: 700, lineHeight: 1.05, letterSpacing: "-0.02em" }}>
+            Sarah
           </h1>
-          <p className="mt-1 text-sm text-text-secondary">
+          <p className="mt-3 flex items-center gap-2 text-[13px] text-text-secondary">
+            <span className="relative inline-flex h-2 w-2">
+              <span className="absolute inset-0 animate-ping rounded-full bg-emerald-400 opacity-60" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.7)]" />
+            </span>
             {patients.length} loved {patients.length === 1 ? "one" : "ones"} · monitoring live
           </p>
         </div>
@@ -111,16 +125,19 @@ function Dashboard() {
       <AnimatePresence>
         {criticalCount > 0 && (
           <motion.div
-            initial={{ opacity: 0, y: -16 }}
+            initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -16 }}
-            className="mt-6 flex items-center gap-3 rounded-2xl glass glass-crit p-4"
+            exit={{ opacity: 0, y: -8 }}
+            className="mt-5 inline-flex items-center gap-2.5 rounded-full px-3.5 py-1.5"
+            style={{ background: "rgba(239,68,68,0.10)", border: "1px solid rgba(239,68,68,0.30)" }}
           >
-            <AlertOctagon className="h-5 w-5 text-status-crit" />
-            <p className="flex-1 text-sm text-text-primary">
-              <span className="font-semibold">{criticalCount}</span> patient
-              {criticalCount > 1 ? "s require" : " requires"} immediate attention.
-            </p>
+            <span className="relative inline-flex h-2 w-2">
+              <span className="absolute inset-0 animate-ping rounded-full bg-red-500 opacity-70" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)]" />
+            </span>
+            <span className="text-[12px] font-medium text-red-200">
+              {criticalCount} patient{criticalCount > 1 ? "s require" : " requires"} immediate attention
+            </span>
           </motion.div>
         )}
       </AnimatePresence>
@@ -129,7 +146,8 @@ function Dashboard() {
         variants={{ show: { transition: { staggerChildren: 0.08 } } }}
         initial="hidden"
         animate="show"
-        className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3"
+        className="grid items-start gap-5 sm:grid-cols-2 lg:grid-cols-3"
+        style={{ marginTop: 32 }}
       >
         {isLoading
           ? Array.from({ length: 6 }).map((_, i) => (
