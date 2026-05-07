@@ -8,6 +8,46 @@ import { supabase } from "@/lib/supabase";
 import { PatientCard } from "@/components/vivre/PatientCard";
 import { Skeleton } from "@/components/vivre/Skeleton";
 import { Chatbot } from "@/components/vivre/Chatbot";
+import { DEMO_PATIENTS, DEMO_VITALS, DEMO_ALERTS } from "@/lib/demo-data";
+
+const VITAL_KEYS = ["heart_rate", "spo2", "blood_pressure"] as const;
+
+function statusFor(metric: string, value: number): "ok" | "warn" | "crit" {
+  if (metric === "heart_rate") return value < 50 || value > 110 ? "crit" : value < 60 || value > 100 ? "warn" : "ok";
+  if (metric === "spo2") return value < 90 ? "crit" : value < 94 ? "warn" : "ok";
+  if (metric === "blood_pressure") return value > 150 ? "crit" : value > 130 ? "warn" : "ok";
+  return "ok";
+}
+
+async function loadPatients() {
+  // Try real Supabase first
+  const { data: patients, error } = await supabase.from("patients").select("*");
+  if (error || !patients || patients.length === 0) {
+    return DEMO_PATIENTS.map((p) => decoratePatient(p, DEMO_VITALS[p.id] ?? [], DEMO_ALERTS[p.id] ?? []));
+  }
+  const ids = patients.map((p: any) => p.id);
+  const [{ data: vitals }, { data: alerts }] = await Promise.all([
+    supabase.from("vitals_readings").select("*").in("patient_id", ids).order("timestamp", { ascending: false }),
+    supabase.from("alerts").select("*").in("patient_id", ids).eq("acknowledged", false),
+  ]);
+  return patients.map((p: any) => {
+    const pv = (vitals ?? []).filter((v: any) => v.patient_id === p.id);
+    const pa = (alerts ?? []).filter((a: any) => a.patient_id === p.id);
+    return decoratePatient(p, pv, pa);
+  });
+}
+
+function decoratePatient(p: any, vitals: any[], alerts: any[]) {
+  const vmap: Record<string, any> = {};
+  for (const k of VITAL_KEYS) {
+    const latest = vitals.find((v: any) => v.metric === k) ?? vitals.find((v: any) => v[k] != null);
+    if (latest) {
+      const value = latest.value ?? latest[k];
+      vmap[k] = { value, status: latest.status ?? statusFor(k, value) };
+    }
+  }
+  return { ...p, vitals: vmap, has_unack_alert: alerts.length > 0 };
+}
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -22,7 +62,7 @@ export const Route = createFileRoute("/")({
 function Dashboard() {
   const { data: patients = [], isLoading, refetch } = useQuery({
     queryKey: ["patients"],
-    queryFn: () => api.listPatients(),
+    queryFn: loadPatients,
   });
 
   useEffect(() => {
@@ -90,10 +130,12 @@ function Dashboard() {
         variants={{ show: { transition: { staggerChildren: 0.08 } } }}
         initial="hidden"
         animate="show"
-        className="mt-8 grid gap-5 sm:grid-cols-2 xl:grid-cols-3"
+        className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3"
       >
         {isLoading
-          ? Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-48 rounded-2xl" />)
+          ? Array.from({ length: 6 }).map((_, i) => (
+              <Skeleton key={i} className="h-64 rounded-2xl" />
+            ))
           : patients.map((p: any) => <PatientCard key={p.id} patient={p} />)}
       </motion.div>
 
