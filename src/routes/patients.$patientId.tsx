@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { useEffect } from "react";
 import {
   Heart, Wind, Gauge, Thermometer, Droplet, Activity,
@@ -11,9 +11,9 @@ import { api } from "@/lib/api";
 import { supabase } from "@/lib/supabase";
 import { HealthScoreRing } from "@/components/vivre/HealthScoreRing";
 import { VitalCard } from "@/components/vivre/VitalCard";
-import { AlertItem } from "@/components/vivre/AlertItem";
 import { Chatbot } from "@/components/vivre/Chatbot";
 import { Skeleton } from "@/components/vivre/Skeleton";
+import { PatientAlertFeed } from "@/components/vivre/PatientAlertFeed";
 
 export const Route = createFileRoute("/patients/$patientId")({
   head: () => ({ meta: [{ title: "Patient — Vivre" }] }),
@@ -245,23 +245,7 @@ function PatientDetail() {
         </div>
       </section>
 
-      {/* ALERTS */}
-      <section className="mt-8">
-        <h2 className="mb-3 text-xs font-semibold uppercase tracking-widest text-text-secondary">Alert feed</h2>
-        <div className="space-y-3">
-          <AnimatePresence initial={false}>
-            {(alerts.data ?? []).map((a: any) => (
-              <AlertItem key={a.id} alert={a} onAck={ack} />
-            ))}
-          </AnimatePresence>
-          {alerts.data?.length === 0 && (
-            <div className="rounded-2xl glass glass-ok p-6 text-center text-sm text-text-secondary">
-              <Shield className="mx-auto mb-2 h-6 w-6 text-status-ok" />
-              All clear — no active alerts.
-            </div>
-          )}
-        </div>
-      </section>
+      <PatientAlertFeed alerts={alerts.data ?? []} onAck={ack} />
 
       <Chatbot patientId={patientId} />
     </div>
