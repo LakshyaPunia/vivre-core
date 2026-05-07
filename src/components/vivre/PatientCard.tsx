@@ -1,7 +1,8 @@
 import { motion, useMotionValue, useTransform, animate } from "framer-motion";
 import { Link } from "@tanstack/react-router";
 import { Heart, Activity, Droplet } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
+import { EcgSparkline } from "./EcgSparkline";
 
 const scoreColor = (s: number) => {
   if (s < 40) return { hex: "#EF4444", band: "Critical" };
@@ -44,6 +45,7 @@ function BigRing({ score }: { score: number }) {
   const mv = useMotionValue(0);
   const offset = useTransform(mv, (v) => c - (v / 100) * c);
   const [display, setDisplay] = useState(0);
+  const filterId = useId().replace(/:/g, "");
   useEffect(() => {
     const ctrl = animate(mv, score, {
       duration: 1.2,
@@ -54,17 +56,23 @@ function BigRing({ score }: { score: number }) {
   }, [score, mv]);
   return (
     <div className="relative inline-flex items-center justify-center" style={{ width: size, height: size }}>
-      <div
-        className="absolute inset-0 rounded-full"
-        style={{ background: `radial-gradient(circle, ${hex}26 0%, transparent 70%)`, opacity: 0.6, filter: "blur(8px)" }}
-      />
-      <svg width={size} height={size} className="relative -rotate-90">
+      <svg width={size} height={size} className="relative -rotate-90" style={{ overflow: "visible" }}>
+        <defs>
+          <filter id={`glow-${filterId}`} x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur stdDeviation="4" result="blur" />
+            <feMerge>
+              <feMergeNode in="blur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+        </defs>
         <circle cx={size / 2} cy={size / 2} r={r} stroke="#1a2235" strokeWidth={stroke} fill="none" />
         <motion.circle
           cx={size / 2} cy={size / 2} r={r}
           stroke={hex} strokeWidth={stroke} fill="none" strokeLinecap="round"
           strokeDasharray={c}
-          style={{ strokeDashoffset: offset, filter: `drop-shadow(0 0 10px ${hex})` }}
+          filter={`url(#glow-${filterId})`}
+          style={{ strokeDashoffset: offset, color: hex }}
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
@@ -76,33 +84,6 @@ function BigRing({ score }: { score: number }) {
         </span>
       </div>
     </div>
-  );
-}
-
-function EcgLine({ color }: { color: string }) {
-  // Decorative ECG sweep — repeats across width
-  const path =
-    "M0 16 L40 16 L48 8 L56 24 L64 4 L72 28 L80 16 L160 16 L168 8 L176 24 L184 4 L192 28 L200 16 L320 16";
-  return (
-    <svg
-      viewBox="0 0 320 32"
-      preserveAspectRatio="none"
-      className="pointer-events-none h-5 w-full"
-      aria-hidden
-    >
-      <motion.path
-        d={path}
-        fill="none"
-        stroke={color}
-        strokeOpacity={0.3}
-        strokeWidth={1.25}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        initial={{ x: -160 }}
-        animate={{ x: 0 }}
-        transition={{ duration: 3, ease: "linear", repeat: Infinity }}
-      />
-    </svg>
   );
 }
 
@@ -140,10 +121,13 @@ export function PatientCard({ patient }: { patient: any }) {
           padding: 28,
         }}
       >
-        {/* center bloom matching ring colour */}
+        {/* center bloom matching ring colour — pure radial gradient, no hard edges */}
         <div
-          className="pointer-events-none absolute left-1/2 top-1/2 h-64 w-64 -translate-x-1/2 -translate-y-1/2 rounded-full"
-          style={{ background: `radial-gradient(circle, ${scoreHex} 0%, transparent 65%)`, opacity: 0.08 }}
+          aria-hidden
+          className="pointer-events-none absolute left-1/2 top-[55%] h-[240px] w-[240px] -translate-x-1/2 -translate-y-1/2"
+          style={{
+            background: `radial-gradient(circle 120px at center, ${scoreHex}1A 0%, transparent 70%)`,
+          }}
         />
 
         {/* TOP ROW */}
@@ -176,9 +160,9 @@ export function PatientCard({ patient }: { patient: any }) {
           <BigRing score={score} />
         </div>
 
-        {/* ECG */}
-        <div className="relative -mb-1">
-          <EcgLine color={scoreHex} />
+        {/* Live ECG sparkline */}
+        <div className="relative -mb-1 h-9">
+          <EcgSparkline data={patient.hr_history ?? []} color={scoreHex} />
         </div>
 
         {/* DIVIDER */}
