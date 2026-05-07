@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
-import { AlertOctagon, BellRing, Plus, Sun } from "lucide-react";
+import { BellRing, Plus, Sun } from "lucide-react";
 import { useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { PatientCard } from "@/components/vivre/PatientCard";
