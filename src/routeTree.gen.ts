@@ -9,14 +9,32 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as DoctorsRouteImport } from './routes/doctors'
+import { Route as AlertsRouteImport } from './routes/alerts'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as PatientsPatientIdRouteImport } from './routes/patients.$patientId'
 import { Route as PatientsPatientIdLocationRouteImport } from './routes/patients_.$patientId.location'
 
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DoctorsRoute = DoctorsRouteImport.update({
+  id: '/doctors',
+  path: '/doctors',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AlertsRoute = AlertsRouteImport.update({
+  id: '/alerts',
+  path: '/alerts',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -38,20 +56,29 @@ const PatientsPatientIdLocationRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/alerts': typeof AlertsRoute
+  '/doctors': typeof DoctorsRoute
   '/login': typeof LoginRoute
+  '/settings': typeof SettingsRoute
   '/patients/$patientId': typeof PatientsPatientIdRoute
   '/patients/$patientId/location': typeof PatientsPatientIdLocationRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/alerts': typeof AlertsRoute
+  '/doctors': typeof DoctorsRoute
   '/login': typeof LoginRoute
+  '/settings': typeof SettingsRoute
   '/patients/$patientId': typeof PatientsPatientIdRoute
   '/patients/$patientId/location': typeof PatientsPatientIdLocationRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/alerts': typeof AlertsRoute
+  '/doctors': typeof DoctorsRoute
   '/login': typeof LoginRoute
+  '/settings': typeof SettingsRoute
   '/patients/$patientId': typeof PatientsPatientIdRoute
   '/patients_/$patientId/location': typeof PatientsPatientIdLocationRoute
 }
@@ -59,33 +86,70 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/alerts'
+    | '/doctors'
     | '/login'
+    | '/settings'
     | '/patients/$patientId'
     | '/patients/$patientId/location'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/login' | '/patients/$patientId' | '/patients/$patientId/location'
+  to:
+    | '/'
+    | '/alerts'
+    | '/doctors'
+    | '/login'
+    | '/settings'
+    | '/patients/$patientId'
+    | '/patients/$patientId/location'
   id:
     | '__root__'
     | '/'
+    | '/alerts'
+    | '/doctors'
     | '/login'
+    | '/settings'
     | '/patients/$patientId'
     | '/patients_/$patientId/location'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AlertsRoute: typeof AlertsRoute
+  DoctorsRoute: typeof DoctorsRoute
   LoginRoute: typeof LoginRoute
+  SettingsRoute: typeof SettingsRoute
   PatientsPatientIdRoute: typeof PatientsPatientIdRoute
   PatientsPatientIdLocationRoute: typeof PatientsPatientIdLocationRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/login': {
       id: '/login'
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/doctors': {
+      id: '/doctors'
+      path: '/doctors'
+      fullPath: '/doctors'
+      preLoaderRoute: typeof DoctorsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/alerts': {
+      id: '/alerts'
+      path: '/alerts'
+      fullPath: '/alerts'
+      preLoaderRoute: typeof AlertsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -114,7 +178,10 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AlertsRoute: AlertsRoute,
+  DoctorsRoute: DoctorsRoute,
   LoginRoute: LoginRoute,
+  SettingsRoute: SettingsRoute,
   PatientsPatientIdRoute: PatientsPatientIdRoute,
   PatientsPatientIdLocationRoute: PatientsPatientIdLocationRoute,
 }
