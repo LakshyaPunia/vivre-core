@@ -14,6 +14,18 @@ const scoreColor = (s: number) => {
 const statusHex = (s?: string) =>
   s === "crit" ? "#EF4444" : s === "warn" ? "#F59E0B" : "#10B981";
 
+const AVATAR_GRADIENTS: Record<string, [string, string]> = {
+  RT: ["#0891B2", "#06B6D4"],
+  HW: ["#DC2626", "#EF4444"],
+  DC: ["#0D9488", "#14B8A6"],
+};
+
+function avatarGradient(initials: string, fallback: string): string {
+  const pair = AVATAR_GRADIENTS[initials];
+  if (pair) return `linear-gradient(135deg, ${pair[0]}, ${pair[1]})`;
+  return `linear-gradient(135deg, ${fallback}, ${fallback}aa)`;
+}
+
 function relativeTime(iso?: string) {
   if (!iso) return "just now";
   const diff = (Date.now() - new Date(iso).getTime()) / 1000;
@@ -67,6 +79,33 @@ function BigRing({ score }: { score: number }) {
   );
 }
 
+function EcgLine({ color }: { color: string }) {
+  // Decorative ECG sweep — repeats across width
+  const path =
+    "M0 16 L40 16 L48 8 L56 24 L64 4 L72 28 L80 16 L160 16 L168 8 L176 24 L184 4 L192 28 L200 16 L320 16";
+  return (
+    <svg
+      viewBox="0 0 320 32"
+      preserveAspectRatio="none"
+      className="pointer-events-none h-5 w-full"
+      aria-hidden
+    >
+      <motion.path
+        d={path}
+        fill="none"
+        stroke={color}
+        strokeOpacity={0.3}
+        strokeWidth={1.25}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        initial={{ x: -160 }}
+        animate={{ x: 0 }}
+        transition={{ duration: 3, ease: "linear", repeat: Infinity }}
+      />
+    </svg>
+  );
+}
+
 export function PatientCard({ patient }: { patient: any }) {
   const score = Math.round(patient.health_score ?? 0);
   const { hex: scoreHex } = scoreColor(score);
@@ -91,7 +130,7 @@ export function PatientCard({ patient }: { patient: any }) {
       <Link
         to="/patients/$patientId"
         params={{ patientId: patient.id }}
-        className="group flex h-full min-h-[320px] flex-col rounded-[20px] border transition-colors duration-200 hover:border-cyan-400/25"
+        className="group relative flex h-full min-h-[320px] flex-col overflow-hidden rounded-[20px] border transition-colors duration-200 hover:border-cyan-400/25"
         style={{
           background: "rgba(15, 22, 40, 0.8)",
           backdropFilter: "blur(24px)",
@@ -101,12 +140,18 @@ export function PatientCard({ patient }: { patient: any }) {
           padding: 28,
         }}
       >
+        {/* center bloom matching ring colour */}
+        <div
+          className="pointer-events-none absolute left-1/2 top-1/2 h-64 w-64 -translate-x-1/2 -translate-y-1/2 rounded-full"
+          style={{ background: `radial-gradient(circle, ${scoreHex} 0%, transparent 65%)`, opacity: 0.08 }}
+        />
+
         {/* TOP ROW */}
-        <div className="flex items-start justify-between gap-3">
+        <div className="relative flex items-start justify-between gap-3">
           <div className="flex items-center gap-3">
             <div
               className="flex h-10 w-10 items-center justify-center rounded-full font-mono text-[13px] font-semibold text-white"
-              style={{ background: `linear-gradient(135deg, ${scoreHex}55, ${scoreHex}22)`, border: `1px solid ${scoreHex}55` }}
+              style={{ background: avatarGradient(initials, scoreHex), boxShadow: `0 4px 12px ${scoreHex}33` }}
             >
               {initials}
             </div>
@@ -127,22 +172,27 @@ export function PatientCard({ patient }: { patient: any }) {
         </div>
 
         {/* HERO RING */}
-        <div className="my-5 flex flex-1 items-center justify-center">
+        <div className="relative mb-4 mt-4 flex flex-1 items-center justify-center">
           <BigRing score={score} />
         </div>
 
+        {/* ECG */}
+        <div className="relative -mb-1">
+          <EcgLine color={scoreHex} />
+        </div>
+
         {/* DIVIDER */}
-        <div className="-mx-7 h-px" style={{ background: "rgba(255,255,255,0.06)" }} />
+        <div className="relative -mx-7 h-px" style={{ background: "rgba(255,255,255,0.06)" }} />
 
         {/* VITALS */}
-        <div className="mt-5 grid grid-cols-3 gap-2">
+        <div className="relative mt-5 grid grid-cols-3 gap-2">
           <Stat icon={Heart} label="Heart Rate" value={vitals.heart_rate?.value} unit="bpm" status={vitals.heart_rate?.status} />
           <Stat icon={Activity} label="SpO₂" value={vitals.spo2?.value} unit="%" status={vitals.spo2?.status} />
           <Stat icon={Droplet} label="BP" value={vitals.blood_pressure?.value} unit="mmHg" status={vitals.blood_pressure?.status} />
         </div>
 
         {/* BOTTOM */}
-        <div className="mt-5 flex items-center justify-between gap-2">
+        <div className="relative mt-5 flex items-center justify-between gap-2">
           {patient.predicted_condition ? (
             <span
               className="inline-block rounded-full px-2.5 py-1 text-[11px] font-medium"
