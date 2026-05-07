@@ -202,13 +202,6 @@ function MobileTabBar() {
           )}
         </Link>
       ))}
-      <Link
-        to="/" search={{ chat: "1" } as any}
-        className="absolute -top-6 right-3 flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-violet-400 to-violet-500 text-white shadow-[0_8px_24px_rgba(139,92,246,0.5)]"
-        aria-label="Open AI chat"
-      >
-        <MapPin className="h-5 w-5" />
-      </Link>
     </nav>
   );
 }
