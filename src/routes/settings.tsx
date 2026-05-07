@@ -44,7 +44,7 @@ function SettingsPage() {
 
         <Section title="Linked family" icon={Users}>
           <ul className="space-y-2 text-sm">
-            <li className="flex items-center justify-between rounded-xl bg-white/5 px-3 py-2"><span>Sarah Thomas (you)</span><span className="text-xs text-text-muted">Owner</span></li>
+            <li className="flex items-center justify-between rounded-xl bg-white/5 px-3 py-2"><span>Lakshya Punia (you)</span><span className="text-xs text-text-muted">Owner</span></li>
             <li className="flex items-center justify-between rounded-xl bg-white/5 px-3 py-2"><span>Mike Thomas</span><span className="text-xs text-text-muted">Viewer</span></li>
           </ul>
         </Section>
