@@ -105,7 +105,7 @@ function Dashboard() {
             Good morning
           </div>
           <h1 className="font-display mt-2 text-text-primary" style={{ fontSize: 48, fontWeight: 700, lineHeight: 1.05, letterSpacing: "-0.02em" }}>
-            Sarah
+            Lakshya Punia
           </h1>
           <p className="mt-3 flex items-center gap-2 text-[13px] text-text-secondary">
             <span className="relative inline-flex h-2 w-2">
@@ -130,7 +130,7 @@ function Dashboard() {
             )}
           </motion.button>
           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-cyan-400 to-violet-500 font-semibold text-white">
-            S
+            L
           </div>
         </div>
       </header>
