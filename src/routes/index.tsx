@@ -45,7 +45,20 @@ function decoratePatient(p: any, vitals: any[], alerts: any[]) {
       vmap[k] = { value, status: latest.status ?? statusFor(k, value) };
     }
   }
-  return { ...p, vitals: vmap, has_unack_alert: alerts.length > 0 };
+  // Build heart-rate history (oldest -> newest, up to 20 points) for sparkline.
+  const hrEntry = vitals.find((v: any) => v.metric === "heart_rate") ?? vitals.find((v: any) => v.heart_rate != null);
+  let hrHistory: number[] = [];
+  if (hrEntry?.history && Array.isArray(hrEntry.history)) {
+    hrHistory = hrEntry.history.slice(-20);
+  } else {
+    const series = vitals
+      .filter((v: any) => v.metric === "heart_rate" || v.heart_rate != null)
+      .map((v: any) => Number(v.value ?? v.heart_rate))
+      .filter((n: any) => Number.isFinite(n));
+    // vitals come ordered desc by timestamp; reverse to chronological
+    hrHistory = series.slice(0, 20).reverse();
+  }
+  return { ...p, vitals: vmap, hr_history: hrHistory, has_unack_alert: alerts.length > 0 };
 }
 
 export const Route = createFileRoute("/")({
