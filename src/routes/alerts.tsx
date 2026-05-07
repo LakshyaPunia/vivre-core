@@ -316,7 +316,7 @@ function AlertsPage() {
           return (
             <div key={pid}>
               <div
-                className="sticky top-0 z-10 flex items-center gap-3 rounded-t-xl px-3 py-2.5"
+                className="sticky top-0 z-10 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-t-xl px-3 py-2.5"
                 style={{
                   background: "rgba(255,255,255,0.03)",
                   borderBottom: "1px solid rgba(255,255,255,0.06)",
@@ -329,7 +329,7 @@ function AlertsPage() {
                 </div>
                 <MiniRing score={score} />
                 <span
-                  className="rounded-full text-[11px] font-medium"
+                  className="rounded-full text-[11px] font-medium whitespace-nowrap"
                   style={{
                     padding: "3px 10px",
                     background: `${band.color}1F`,
@@ -342,7 +342,7 @@ function AlertsPage() {
                 <Link
                   to="/patients/$patientId"
                   params={{ patientId: pid }}
-                  className="text-[13px] font-medium hover:underline"
+                  className="ml-auto whitespace-nowrap text-[13px] font-medium hover:underline"
                   style={{ color: "#06B6D4" }}
                 >
                   View Patient →
