@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 
 import appCss from "../styles.css?url";
+import { Toaster } from "sonner";
 
 function NotFoundComponent() {
   return (
@@ -136,6 +137,18 @@ function RootComponent() {
           <MobileTabBar />
         </div>
       )}
+      <Toaster
+        position="top-right"
+        theme="dark"
+        toastOptions={{
+          style: {
+            background: "rgba(15,22,40,0.92)",
+            border: "1px solid rgba(255,255,255,0.08)",
+            backdropFilter: "blur(20px)",
+            color: "#F0F4FF",
+          },
+        }}
+      />
     </QueryClientProvider>
   );
 }
