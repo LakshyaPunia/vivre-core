@@ -72,11 +72,35 @@ export const Route = createFileRoute("/")({
 });
 
 function Dashboard() {
-  const { data: patients = [], isLoading, refetch } = useQuery({
+  const { data: initialPatients = [], isLoading, refetch } = useQuery({
     queryKey: ["patients"],
     queryFn: loadPatients,
   });
+  const [patients, setPatients] = useState<any[]>([]);
   const [flashIds, setFlashIds] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (initialPatients && initialPatients.length) setPatients(initialPatients);
+  }, [initialPatients]);
+
+  const computeStatus = (metric: string, value: number): "ok" | "warn" | "crit" => {
+    if (metric === "heart_rate") {
+      if (value < 50 || value > 120) return "crit";
+      if (value > 100) return "warn";
+      return "ok";
+    }
+    if (metric === "spo2") {
+      if (value < 90) return "crit";
+      if (value < 94) return "warn";
+      return "ok";
+    }
+    if (metric === "blood_pressure") {
+      if (value > 180) return "crit";
+      if (value > 160) return "warn";
+      return "ok";
+    }
+    return "ok";
+  };
 
   useEffect(() => {
     const channel = supabase
@@ -97,12 +121,44 @@ function Dashboard() {
               });
             }, 900);
           }
-          refetch();
+          if (!pid) return;
+          setPatients((prev) =>
+            prev.map((p) => {
+              if (p.id !== pid) return p;
+              const nextVitals = { ...(p.vitals ?? {}) };
+              const updateVital = (key: "heart_rate" | "spo2" | "blood_pressure", val: any) => {
+                if (val == null) return;
+                const num = Number(val);
+                if (!Number.isFinite(num)) return;
+                nextVitals[key] = { value: val, status: computeStatus(key, num) };
+              };
+              if (row.metric && row.value != null) {
+                updateVital(row.metric, row.value);
+              } else {
+                updateVital("heart_rate", row.heart_rate);
+                updateVital("spo2", row.spo2);
+                updateVital("blood_pressure", row.blood_pressure);
+              }
+              let hr_history = p.hr_history ?? [];
+              const hrVal = row.metric === "heart_rate" ? Number(row.value) : Number(row.heart_rate);
+              if (Number.isFinite(hrVal)) {
+                hr_history = [...hr_history, hrVal].slice(-20);
+              }
+              return {
+                ...p,
+                health_score: row.health_score ?? p.health_score,
+                predicted_condition: row.predicted_condition ?? p.predicted_condition,
+                updated_at: row.timestamp ?? row.updated_at ?? new Date().toISOString(),
+                vitals: nextVitals,
+                hr_history,
+              };
+            })
+          );
         }
       )
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [refetch]);
+  }, []);
 
   const criticalCount = patients.filter((p: any) => (p.health_score ?? 100) < 40).length;
 
