@@ -16,6 +16,12 @@ import { Chatbot } from "@/components/vivre/Chatbot";
 import { Skeleton } from "@/components/vivre/Skeleton";
 import { PatientAlertFeed } from "@/components/vivre/PatientAlertFeed";
 
+function BellIconForSeverity(sev?: string) {
+  if (sev === "critical") return AlertTriangle;
+  if (sev === "warning") return Activity;
+  return Activity;
+}
+
 export const Route = createFileRoute("/patients/$patientId")({
   head: () => ({ meta: [{ title: "Patient — Vivre" }] }),
   component: PatientDetail,
