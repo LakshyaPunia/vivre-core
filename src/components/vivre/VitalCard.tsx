@@ -37,16 +37,22 @@ export function VitalCard({
   iconAnimation?: "heartbeat" | "breathe" | "none";
   history?: number[];
 }) {
-  const [flash, setFlash] = useState(false);
+  const [flash, setFlash] = useState<null | "up" | "down" | "neutral">(null);
   const [prevValue, setPrevValue] = useState(value);
   useEffect(() => {
     if (value !== prevValue) {
-      setFlash(true);
+      const dir =
+        label === "SpO₂"
+          ? value > prevValue ? "up" : value < prevValue ? "down" : "neutral"
+          : label === "Heart Rate" || label === "Blood Pressure"
+          ? Math.abs(value - 75) < Math.abs(prevValue - 75) ? "up" : "down"
+          : value > prevValue ? "up" : value < prevValue ? "down" : "neutral";
+      setFlash(dir);
       setPrevValue(value);
-      const t = setTimeout(() => setFlash(false), 1500);
+      const t = setTimeout(() => setFlash(null), 800);
       return () => clearTimeout(t);
     }
-  }, [value, prevValue]);
+  }, [value, prevValue, label]);
 
   const TrendIcon = trend > 0 ? ArrowUp : trend < 0 ? ArrowDown : ArrowRight;
   const trendColor = trend > 0 ? "text-status-ok" : trend < 0 ? "text-status-crit" : "text-text-muted";
@@ -60,7 +66,7 @@ export function VitalCard({
     <motion.div
       whileHover={{ scale: 1.02 }}
       transition={{ duration: 0.2 }}
-      className={`relative overflow-hidden p-4 ${statusClass[status]} ${flash ? "ring-2 ring-cyan-400" : ""} transition-shadow`}
+      className={`relative overflow-hidden p-4 ${statusClass[status]} ${flash === "up" ? "ring-2 ring-emerald-400" : flash === "down" ? "ring-2 ring-amber-400" : flash === "neutral" ? "ring-2 ring-cyan-400" : ""} transition-shadow`}
     >
       {iconAnimation === "breathe" && (
         <div className="pointer-events-none absolute inset-0 rounded-2xl border-2 border-cyan-400/30 animate-breathe" />

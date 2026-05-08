@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { BellRing, Plus, Sun } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { PatientCard } from "@/components/vivre/PatientCard";
 import { Skeleton } from "@/components/vivre/Skeleton";
@@ -76,11 +76,30 @@ function Dashboard() {
     queryKey: ["patients"],
     queryFn: loadPatients,
   });
+  const [flashIds, setFlashIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const channel = supabase
       .channel("vitals-feed")
-      .on("postgres_changes", { event: "*", schema: "public", table: "vitals_readings" }, () => refetch())
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "vitals_readings" },
+        (payload: any) => {
+          const row = payload?.new ?? {};
+          const pid = row.patient_id;
+          if (pid && (row.is_anomaly || (row.alerts_triggered ?? 0) > 0)) {
+            setFlashIds((prev) => new Set(prev).add(pid));
+            setTimeout(() => {
+              setFlashIds((prev) => {
+                const next = new Set(prev);
+                next.delete(pid);
+                return next;
+              });
+            }, 900);
+          }
+          refetch();
+        }
+      )
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [refetch]);
@@ -166,7 +185,9 @@ function Dashboard() {
           ? Array.from({ length: 6 }).map((_, i) => (
               <Skeleton key={i} className="h-64 rounded-2xl" />
             ))
-          : patients.map((p: any) => <PatientCard key={p.id} patient={p} />)}
+          : patients.map((p: any) => (
+              <PatientCard key={p.id} patient={p} flash={flashIds.has(p.id)} />
+            ))}
       </motion.div>
 
       <motion.button

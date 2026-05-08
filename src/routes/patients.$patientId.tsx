@@ -1,9 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
+import { toast } from "sonner";
 import {
-  Heart, Wind, Gauge, Thermometer, Droplet, Activity,
+  Heart, Wind, Gauge, Thermometer, Droplet, Activity, AlertTriangle,
   ArrowLeft, Phone, Shield, Video, Clock,
 } from "lucide-react";
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
@@ -14,6 +15,12 @@ import { VitalCard } from "@/components/vivre/VitalCard";
 import { Chatbot } from "@/components/vivre/Chatbot";
 import { Skeleton } from "@/components/vivre/Skeleton";
 import { PatientAlertFeed } from "@/components/vivre/PatientAlertFeed";
+
+function BellIconForSeverity(sev?: string) {
+  if (sev === "critical") return AlertTriangle;
+  if (sev === "warning") return Activity;
+  return Activity;
+}
 
 export const Route = createFileRoute("/patients/$patientId")({
   head: () => ({ meta: [{ title: "Patient — Vivre" }] }),
@@ -41,14 +48,39 @@ function PatientDetail() {
   const trend = useQuery({ queryKey: ["trend", patientId], queryFn: () => api.getHealthTrend(patientId) });
   const lifestyle = useQuery({ queryKey: ["lifestyle", patientId], queryFn: () => api.getLifestyle(patientId) });
 
+  const seenAlertIds = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    for (const a of alerts.data ?? []) seenAlertIds.current.add(a.id);
+  }, [alerts.data]);
+
   useEffect(() => {
     const ch = supabase
       .channel(`patient-${patientId}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "vitals_readings", filter: `patient_id=eq.${patientId}` }, () => vitals.refetch())
-      .on("postgres_changes", { event: "*", schema: "public", table: "alerts", filter: `patient_id=eq.${patientId}` }, () => alerts.refetch())
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "vitals_readings", filter: `patient_id=eq.${patientId}` },
+        () => { vitals.refetch(); trend.refetch(); patient.refetch(); }
+      )
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "alerts", filter: `patient_id=eq.${patientId}` },
+        (payload: any) => {
+          const row = payload?.new ?? {};
+          if (row.id && seenAlertIds.current.has(row.id)) return;
+          if (row.id) seenAlertIds.current.add(row.id);
+          const isCrit = row.severity === "critical";
+          const Icon = isCrit ? AlertTriangle : BellIconForSeverity(row.severity);
+          toast(row.message ?? "New alert", {
+            description: "just now",
+            duration: isCrit ? Infinity : 5000,
+            icon: <Icon className="h-4 w-4" style={{ color: isCrit ? "#EF4444" : row.severity === "warning" ? "#F59E0B" : "#06B6D4" }} />,
+          });
+          alerts.refetch();
+        }
+      )
       .subscribe();
     return () => { supabase.removeChannel(ch); };
-  }, [patientId, vitals, alerts]);
+  }, [patientId, vitals, alerts, trend, patient]);
 
   const ack = async (id: string) => { await api.acknowledgeAlert(id); alerts.refetch(); };
 
