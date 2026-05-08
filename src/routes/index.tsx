@@ -38,27 +38,32 @@ async function loadPatients() {
 
 function decoratePatient(p: any, vitals: any[], alerts: any[]) {
   const vmap: Record<string, any> = {};
-  for (const k of VITAL_KEYS) {
-    const latest = vitals.find((v: any) => v.metric === k) ?? vitals.find((v: any) => v[k] != null);
-    if (latest) {
-      const value = latest.value ?? latest[k];
-      vmap[k] = { value, status: latest.status ?? statusFor(k, value) };
+  const latest = vitals[0];
+  if (latest) {
+    vmap["heart_rate"] = {
+      value: Math.round(latest.heart_rate ?? 0),
+      status: statusFor("heart_rate", latest.heart_rate ?? 0),
+    };
+    vmap["spo2"] = {
+      value: Math.round(latest.spo2 ?? 0),
+      status: statusFor("spo2", latest.spo2 ?? 0),
+    };
+    if (latest.systolic_bp != null && latest.diastolic_bp != null) {
+      vmap["blood_pressure"] = {
+        value: `${Math.round(latest.systolic_bp)}/${Math.round(latest.diastolic_bp)}`,
+        status: statusFor("blood_pressure", latest.systolic_bp),
+      };
     }
   }
-  // Build heart-rate history (oldest -> newest, up to 20 points) for sparkline.
-  const hrEntry = vitals.find((v: any) => v.metric === "heart_rate") ?? vitals.find((v: any) => v.heart_rate != null);
-  let hrHistory: number[] = [];
-  if (hrEntry?.history && Array.isArray(hrEntry.history)) {
-    hrHistory = hrEntry.history.slice(-20);
-  } else {
-    const series = vitals
-      .filter((v: any) => v.metric === "heart_rate" || v.heart_rate != null)
-      .map((v: any) => Number(v.value ?? v.heart_rate))
-      .filter((n: any) => Number.isFinite(n));
-    // vitals come ordered desc by timestamp; reverse to chronological
-    hrHistory = series.slice(0, 20).reverse();
-  }
-  return { ...p, vitals: vmap, hr_history: hrHistory, has_unack_alert: alerts.length > 0 };
+  return {
+    ...p,
+    health_score: latest?.health_score ?? p.health_score ?? 0,
+    predicted_condition: latest?.predicted_disease ?? p.predicted_condition ?? "",
+    updated_at: latest?.timestamp ?? p.updated_at,
+    vitals: vmap,
+    hr_history: vitals.filter((v: any) => v.heart_rate != null).map((v: any) => Math.round(v.heart_rate)).slice(0, 20).reverse(),
+    has_unack_alert: alerts.length > 0,
+  };
 }
 
 export const Route = createFileRoute("/")({
@@ -137,7 +142,12 @@ function Dashboard() {
               } else {
                 updateVital("heart_rate", row.heart_rate);
                 updateVital("spo2", row.spo2);
-                updateVital("blood_pressure", row.blood_pressure);
+                if (row.systolic_bp != null && row.diastolic_bp != null) {
+                  nextVitals["blood_pressure"] = {
+                    value: `${Math.round(row.systolic_bp)}/${Math.round(row.diastolic_bp)}`,
+                    status: computeStatus("blood_pressure", row.systolic_bp),
+                  };
+                }
               }
               let hr_history = p.hr_history ?? [];
               const hrVal = row.metric === "heart_rate" ? Number(row.value) : Number(row.heart_rate);
@@ -147,7 +157,7 @@ function Dashboard() {
               return {
                 ...p,
                 health_score: row.health_score ?? p.health_score,
-                predicted_condition: row.predicted_condition ?? p.predicted_condition,
+                predicted_condition: row.predicted_disease ?? p.predicted_condition,
                 updated_at: row.timestamp ?? row.updated_at ?? new Date().toISOString(),
                 vitals: nextVitals,
                 hr_history,
