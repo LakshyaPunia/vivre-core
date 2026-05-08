@@ -87,7 +87,7 @@ function BigRing({ score }: { score: number }) {
   );
 }
 
-export function PatientCard({ patient }: { patient: any }) {
+export function PatientCard({ patient, flash }: { patient: any; flash?: boolean }) {
   const score = Math.round(patient.health_score ?? 0);
   const { hex: scoreHex } = scoreColor(score);
   const isCritical = score < 40 || patient.has_unack_alert;
@@ -111,7 +111,7 @@ export function PatientCard({ patient }: { patient: any }) {
       <Link
         to="/patients/$patientId"
         params={{ patientId: patient.id }}
-        className="group relative flex h-full min-h-[320px] flex-col overflow-hidden rounded-[20px] border transition-colors duration-200 hover:border-cyan-400/25"
+        className={`group relative flex h-full min-h-[320px] flex-col overflow-hidden rounded-[20px] border transition-all duration-300 hover:border-cyan-400/25 ${flash ? "ring-2 ring-cyan-400/70" : ""}`}
         style={{
           background: "rgba(15, 22, 40, 0.8)",
           backdropFilter: "blur(24px)",
