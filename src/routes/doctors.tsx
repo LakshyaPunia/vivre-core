@@ -1,8 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { motion, AnimatePresence } from "framer-motion";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Phone, PhoneOff, Stethoscope, Video } from "lucide-react";
 import { Chatbot } from "@/components/vivre/Chatbot";
+import { supabase } from "@/lib/supabase";
 
 export const Route = createFileRoute("/doctors")({
   head: () => ({ meta: [{ title: "Doctor Connect — Vivre" }] }),
@@ -101,12 +102,7 @@ function DoctorsPage() {
               className="w-full border-t border-border-glass glass p-5 md:w-80 md:border-l md:border-t-0"
             >
               <h3 className="text-xs font-semibold uppercase tracking-widest text-text-secondary">Live vitals</h3>
-              <ul className="mt-3 space-y-2 text-sm">
-                <li className="flex justify-between"><span className="text-text-secondary">Heart rate</span><span className="font-mono">78 bpm</span></li>
-                <li className="flex justify-between"><span className="text-text-secondary">SpO₂</span><span className="font-mono">97 %</span></li>
-                <li className="flex justify-between"><span className="text-text-secondary">BP</span><span className="font-mono">128/82</span></li>
-                <li className="flex justify-between"><span className="text-text-secondary">Temp</span><span className="font-mono">36.7 °C</span></li>
-              </ul>
+              <LiveVitalsSidebar />
             </motion.aside>
           </motion.div>
         )}
