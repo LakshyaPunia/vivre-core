@@ -3,11 +3,21 @@ import { useQuery } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { BellRing, Plus, Sun } from "lucide-react";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
 import { PatientCard } from "@/components/vivre/PatientCard";
 import { Skeleton } from "@/components/vivre/Skeleton";
 import { Chatbot } from "@/components/vivre/Chatbot";
 import { DEMO_PATIENTS, DEMO_VITALS, DEMO_ALERTS } from "@/lib/demo-data";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 const VITAL_KEYS = ["heart_rate", "spo2", "blood_pressure"] as const;
 
@@ -83,6 +93,16 @@ function Dashboard() {
   });
   const [patients, setPatients] = useState<any[]>([]);
   const [flashIds, setFlashIds] = useState<Set<string>>(new Set());
+  const [addOpen, setAddOpen] = useState(false);
+  const [addSaving, setAddSaving] = useState(false);
+  const [addError, setAddError] = useState<string | null>(null);
+  const [addForm, setAddForm] = useState({
+    name: "",
+    age: "",
+    gender: "",
+    city: "",
+    predicted_condition: "",
+  });
 
   useEffect(() => {
     if (initialPatients && initialPatients.length) setPatients(initialPatients);
@@ -172,6 +192,38 @@ function Dashboard() {
 
   const criticalCount = patients.filter((p: any) => (p.health_score ?? 100) < 40).length;
 
+  const addPatient = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAddError(null);
+    const ageNum = Number(addForm.age);
+    if (!addForm.name.trim() || !addForm.age.trim() || !addForm.gender.trim() || !addForm.city.trim()) {
+      setAddError("Please fill in full name, age, gender, and city.");
+      return;
+    }
+    if (!Number.isFinite(ageNum) || ageNum <= 0) {
+      setAddError("Age must be a positive number.");
+      return;
+    }
+    setAddSaving(true);
+    const { error } = await supabase.from("patients").insert({
+      id: crypto.randomUUID(),
+      name: addForm.name.trim(),
+      age: ageNum,
+      gender: addForm.gender.trim(),
+      city: addForm.city.trim(),
+      predicted_condition: addForm.predicted_condition.trim() || null,
+    });
+    setAddSaving(false);
+    if (error) {
+      setAddError(error.message);
+      return;
+    }
+    toast.success("Patient added");
+    setAddOpen(false);
+    setAddForm({ name: "", age: "", gender: "", city: "", predicted_condition: "" });
+    refetch();
+  };
+
   return (
     <div className="mx-auto max-w-6xl px-4 md:px-10" style={{ paddingTop: 48, paddingBottom: 48 }}>
       <header className="flex items-start justify-between gap-4">
@@ -257,6 +309,8 @@ function Dashboard() {
       </motion.div>
 
       <motion.button
+        type="button"
+        onClick={() => setAddOpen(true)}
         initial={{ scale: 0 }}
         animate={{ scale: 1 }}
         transition={{ type: "spring", stiffness: 300, damping: 18, delay: 0.6 }}
@@ -266,6 +320,91 @@ function Dashboard() {
       >
         <Plus className="h-4 w-4" /> Add patient
       </motion.button>
+
+      <Dialog open={addOpen} onOpenChange={setAddOpen}>
+        <DialogContent className="border-white/10 bg-[#0b1220] text-text-primary shadow-[0_24px_80px_rgba(0,0,0,0.45)]">
+          <DialogHeader>
+            <DialogTitle>Add patient</DialogTitle>
+            <DialogDescription>Enter the patient details to add them to live monitoring.</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={addPatient} className="space-y-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2 sm:col-span-2">
+                <Label htmlFor="patient-name">Full name</Label>
+                <Input
+                  id="patient-name"
+                  value={addForm.name}
+                  onChange={(e) => setAddForm((f) => ({ ...f, name: e.target.value }))}
+                  className="border-white/10 bg-white/[0.03] text-text-primary"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="patient-age">Age</Label>
+                <Input
+                  id="patient-age"
+                  type="number"
+                  min="1"
+                  value={addForm.age}
+                  onChange={(e) => setAddForm((f) => ({ ...f, age: e.target.value }))}
+                  className="border-white/10 bg-white/[0.03] text-text-primary"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="patient-gender">Gender</Label>
+                <Input
+                  id="patient-gender"
+                  value={addForm.gender}
+                  onChange={(e) => setAddForm((f) => ({ ...f, gender: e.target.value }))}
+                  className="border-white/10 bg-white/[0.03] text-text-primary"
+                  required
+                />
+              </div>
+              <div className="space-y-2 sm:col-span-2">
+                <Label htmlFor="patient-city">City</Label>
+                <Input
+                  id="patient-city"
+                  value={addForm.city}
+                  onChange={(e) => setAddForm((f) => ({ ...f, city: e.target.value }))}
+                  className="border-white/10 bg-white/[0.03] text-text-primary"
+                  required
+                />
+              </div>
+              <div className="space-y-2 sm:col-span-2">
+                <Label htmlFor="patient-condition">Medical condition</Label>
+                <Input
+                  id="patient-condition"
+                  value={addForm.predicted_condition}
+                  onChange={(e) => setAddForm((f) => ({ ...f, predicted_condition: e.target.value }))}
+                  className="border-white/10 bg-white/[0.03] text-text-primary"
+                />
+              </div>
+            </div>
+            {addError && (
+              <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-200">
+                {addError}
+              </div>
+            )}
+            <div className="flex justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setAddOpen(false)}
+                className="rounded-lg border border-white/10 px-4 py-2 text-sm text-text-secondary transition hover:bg-white/[0.04] hover:text-text-primary"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={addSaving}
+                className="rounded-lg bg-cyan-500 px-4 py-2 text-sm font-medium text-[#06121a] transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {addSaving ? "Adding..." : "Add patient"}
+              </button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       <Chatbot />
     </div>
