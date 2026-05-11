@@ -15,6 +15,9 @@ import { VitalCard } from "@/components/vivre/VitalCard";
 import { Chatbot } from "@/components/vivre/Chatbot";
 import { Skeleton } from "@/components/vivre/Skeleton";
 import { PatientAlertFeed } from "@/components/vivre/PatientAlertFeed";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 
 function BellIconForSeverity(sev?: string) {
   if (sev === "critical") return AlertTriangle;
@@ -141,6 +144,11 @@ function PatientDetail() {
   const [loading, setLoading] = useState(true);
   const [range, setRange] = useState<"6h" | "24h" | "7d">("24h");
 
+  const [editForm, setEditForm] = useState({ name: "", age: "", city: "" });
+  const [editLoaded, setEditLoaded] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+
   const seenAlertIds = useRef<Set<string>>(new Set());
 
   // initial load
@@ -224,6 +232,36 @@ function PatientDetail() {
   }, [trendRows, range]);
 
   const p = patient.data;
+
+  useEffect(() => {
+    if (p && !editLoaded) {
+      setEditForm({ name: p.name ?? "", age: p.age != null ? String(p.age) : "", city: p.city ?? "" });
+      setEditLoaded(true);
+    }
+  }, [p, editLoaded]);
+
+  const saveChanges = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setEditError(null);
+    const ageNum = editForm.age === "" ? null : Number(editForm.age);
+    if (ageNum != null && (!Number.isFinite(ageNum) || ageNum <= 0)) {
+      setEditError("Age must be a positive number.");
+      return;
+    }
+    setSaving(true);
+    const { error } = await supabase
+      .from("patients")
+      .update({ name: editForm.name.trim(), age: ageNum, city: editForm.city.trim() })
+      .eq("id", patientId);
+    setSaving(false);
+    if (error) {
+      setEditError(error.message);
+      return;
+    }
+    toast.success("Changes saved");
+    patient.refetch();
+  };
+
   const score = Math.round(latestRow?.health_score ?? p?.health_score ?? 0);
   const scoreColor =
     score < 40 ? "#EF4444" :
@@ -436,6 +474,28 @@ function PatientDetail() {
       </section>
 
       <PatientAlertFeed alerts={alertRows as any} onAck={ack} />
+
+      <section className="mt-8 rounded-2xl glass p-5">
+        <h2 className="mb-4 text-xs font-semibold uppercase tracking-widest text-text-secondary">Edit profile</h2>
+        <form onSubmit={saveChanges} className="grid gap-3 md:grid-cols-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="ep-name">Name</Label>
+            <Input id="ep-name" value={editForm.name} maxLength={100} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="ep-age">Age</Label>
+            <Input id="ep-age" type="number" min={0} max={130} value={editForm.age} onChange={(e) => setEditForm({ ...editForm, age: e.target.value })} />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="ep-city">City</Label>
+            <Input id="ep-city" value={editForm.city} maxLength={100} onChange={(e) => setEditForm({ ...editForm, city: e.target.value })} />
+          </div>
+          {editError && <p className="md:col-span-3 text-sm text-red-400">{editError}</p>}
+          <div className="md:col-span-3 flex justify-end">
+            <Button type="submit" disabled={saving}>{saving ? "Saving…" : "Save changes"}</Button>
+          </div>
+        </form>
+      </section>
 
       <Chatbot patientId={patientId} />
     </div>
