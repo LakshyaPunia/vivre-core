@@ -1,6 +1,6 @@
 import { DEMO_PATIENTS, DEMO_VITALS, DEMO_ALERTS, DEMO_HEALTH_TREND, DEMO_LIFESTYLE } from "./demo-data";
 
-const API_BASE = "http://localhost:8000/api/v1";
+const API_BASE = "https://vivre-production.up.railway.app/api/v1";
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
