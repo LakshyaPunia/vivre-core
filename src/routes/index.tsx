@@ -9,13 +9,6 @@ import { PatientCard } from "@/components/vivre/PatientCard";
 import { Skeleton } from "@/components/vivre/Skeleton";
 import { Chatbot } from "@/components/vivre/Chatbot";
 import { DEMO_PATIENTS, DEMO_VITALS, DEMO_ALERTS } from "@/lib/demo-data";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
@@ -308,25 +301,29 @@ function Dashboard() {
             ))}
       </motion.div>
 
-      <motion.button
+      <button
         type="button"
         onClick={() => setAddOpen(true)}
-        initial={{ scale: 0 }}
-        animate={{ scale: 1 }}
-        transition={{ type: "spring", stiffness: 300, damping: 18, delay: 0.6 }}
-        whileHover={{ scale: 1.08 }}
-        whileTap={{ scale: 0.92 }}
-        className="fixed bottom-44 left-4 z-50 flex items-center gap-2 rounded-full bg-cyan-500 px-4 py-3 text-sm font-medium text-[#06121a] shadow-[0_8px_24px_rgba(6,182,212,0.45)] md:bottom-6 md:left-auto md:right-24"
+        className="fixed bottom-44 left-4 z-[70] flex items-center gap-2 rounded-full bg-cyan-500 px-4 py-3 text-sm font-medium text-[#06121a] shadow-[0_8px_24px_rgba(6,182,212,0.45)] transition hover:scale-105 hover:bg-cyan-400 md:bottom-6 md:left-auto md:right-24"
       >
         <Plus className="h-4 w-4" /> Add patient
-      </motion.button>
+      </button>
 
-      <Dialog open={addOpen} onOpenChange={setAddOpen}>
-        <DialogContent className="border-white/10 bg-[#0b1220] text-text-primary shadow-[0_24px_80px_rgba(0,0,0,0.45)]">
-          <DialogHeader>
-            <DialogTitle>Add patient</DialogTitle>
-            <DialogDescription>Enter the patient details to add them to live monitoring.</DialogDescription>
-          </DialogHeader>
+      {addOpen && (
+        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/80 px-4">
+          <div className="relative w-full max-w-lg rounded-2xl border border-white/10 bg-[#0b1220] p-6 text-text-primary shadow-[0_24px_80px_rgba(0,0,0,0.45)]">
+            <button
+              type="button"
+              onClick={() => setAddOpen(false)}
+              className="absolute right-4 top-4 text-text-secondary transition hover:text-text-primary"
+              aria-label="Close add patient form"
+            >
+              ×
+            </button>
+            <div className="mb-4">
+              <h2 className="text-lg font-semibold leading-none tracking-tight">Add patient</h2>
+              <p className="mt-2 text-sm text-text-secondary">Enter the patient details to add them to live monitoring.</p>
+            </div>
           <form onSubmit={addPatient} className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2 sm:col-span-2">
@@ -403,8 +400,9 @@ function Dashboard() {
               </button>
             </div>
           </form>
-        </DialogContent>
-      </Dialog>
+          </div>
+        </div>
+      )}
 
       <Chatbot />
     </div>
