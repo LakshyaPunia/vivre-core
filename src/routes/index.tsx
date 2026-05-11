@@ -15,7 +15,8 @@ import { Label } from "@/components/ui/label";
 const VITAL_KEYS = ["heart_rate", "spo2", "blood_pressure"] as const;
 
 function statusFor(metric: string, value: number): "ok" | "warn" | "crit" {
-  if (metric === "heart_rate") return value < 50 || value > 110 ? "crit" : value < 60 || value > 100 ? "warn" : "ok";
+  if (metric === "heart_rate")
+    return value < 50 || value > 110 ? "crit" : value < 60 || value > 100 ? "warn" : "ok";
   if (metric === "spo2") return value < 90 ? "crit" : value < 94 ? "warn" : "ok";
   if (metric === "blood_pressure") return value > 150 ? "crit" : value > 130 ? "warn" : "ok";
   return "ok";
@@ -25,11 +26,17 @@ async function loadPatients() {
   // Try real Supabase first
   const { data: patients, error } = await supabase.from("patients").select("*");
   if (error || !patients || patients.length === 0) {
-    return DEMO_PATIENTS.map((p) => decoratePatient(p, DEMO_VITALS[p.id] ?? [], DEMO_ALERTS[p.id] ?? []));
+    return DEMO_PATIENTS.map((p) =>
+      decoratePatient(p, DEMO_VITALS[p.id] ?? [], DEMO_ALERTS[p.id] ?? []),
+    );
   }
   const ids = patients.map((p: any) => p.id);
   const [{ data: vitals }, { data: alerts }] = await Promise.all([
-    supabase.from("vitals_readings").select("*").in("patient_id", ids).order("timestamp", { ascending: false }),
+    supabase
+      .from("vitals_readings")
+      .select("*")
+      .in("patient_id", ids)
+      .order("timestamp", { ascending: false }),
     supabase.from("alerts").select("*").in("patient_id", ids).eq("acknowledged", false),
   ]);
   return patients.map((p: any) => {
@@ -64,7 +71,11 @@ function decoratePatient(p: any, vitals: any[], alerts: any[]) {
     predicted_condition: latest?.predicted_disease ?? p.predicted_condition ?? "",
     updated_at: latest?.timestamp ?? p.updated_at,
     vitals: vmap,
-    hr_history: vitals.filter((v: any) => v.heart_rate != null).map((v: any) => Math.round(v.heart_rate)).slice(0, 20).reverse(),
+    hr_history: vitals
+      .filter((v: any) => v.heart_rate != null)
+      .map((v: any) => Math.round(v.heart_rate))
+      .slice(0, 20)
+      .reverse(),
     has_unack_alert: alerts.length > 0,
   };
 }
@@ -80,7 +91,11 @@ export const Route = createFileRoute("/")({
 });
 
 function Dashboard() {
-  const { data: initialPatients = [], isLoading, refetch } = useQuery({
+  const {
+    data: initialPatients = [],
+    isLoading,
+    refetch,
+  } = useQuery({
     queryKey: ["patients"],
     queryFn: loadPatients,
   });
@@ -163,7 +178,8 @@ function Dashboard() {
                 }
               }
               let hr_history = p.hr_history ?? [];
-              const hrVal = row.metric === "heart_rate" ? Number(row.value) : Number(row.heart_rate);
+              const hrVal =
+                row.metric === "heart_rate" ? Number(row.value) : Number(row.heart_rate);
               if (Number.isFinite(hrVal)) {
                 hr_history = [...hr_history, hrVal].slice(-20);
               }
@@ -175,12 +191,14 @@ function Dashboard() {
                 vitals: nextVitals,
                 hr_history,
               };
-            })
+            }),
           );
-        }
+        },
       )
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const criticalCount = patients.filter((p: any) => (p.health_score ?? 100) < 40).length;
@@ -189,7 +207,12 @@ function Dashboard() {
     e.preventDefault();
     setAddError(null);
     const ageNum = Number(addForm.age);
-    if (!addForm.name.trim() || !addForm.age.trim() || !addForm.gender.trim() || !addForm.city.trim()) {
+    if (
+      !addForm.name.trim() ||
+      !addForm.age.trim() ||
+      !addForm.gender.trim() ||
+      !addForm.city.trim()
+    ) {
       setAddError("Please fill in full name, age, gender, and city.");
       return;
     }
@@ -234,7 +257,10 @@ function Dashboard() {
             </motion.span>
             Good morning
           </div>
-          <h1 className="font-display mt-2 text-text-primary" style={{ fontSize: 48, fontWeight: 700, lineHeight: 1.05, letterSpacing: "-0.02em" }}>
+          <h1
+            className="font-display mt-2 text-text-primary"
+            style={{ fontSize: 48, fontWeight: 700, lineHeight: 1.05, letterSpacing: "-0.02em" }}
+          >
             Lakshya
           </h1>
           <p className="mt-3 flex items-center gap-2 text-[13px] text-text-secondary">
@@ -279,7 +305,8 @@ function Dashboard() {
               <span className="relative inline-flex h-2 w-2 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)]" />
             </span>
             <span className="text-[12px] font-medium text-red-200">
-              {criticalCount} patient{criticalCount > 1 ? "s require" : " requires"} immediate attention
+              {criticalCount} patient{criticalCount > 1 ? "s require" : " requires"} immediate
+              attention
             </span>
           </motion.div>
         )}
@@ -322,84 +349,88 @@ function Dashboard() {
             </button>
             <div className="mb-4">
               <h2 className="text-lg font-semibold leading-none tracking-tight">Add patient</h2>
-              <p className="mt-2 text-sm text-text-secondary">Enter the patient details to add them to live monitoring.</p>
+              <p className="mt-2 text-sm text-text-secondary">
+                Enter the patient details to add them to live monitoring.
+              </p>
             </div>
-          <form onSubmit={addPatient} className="space-y-4">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2 sm:col-span-2">
-                <Label htmlFor="patient-name">Full name</Label>
-                <Input
-                  id="patient-name"
-                  value={addForm.name}
-                  onChange={(e) => setAddForm((f) => ({ ...f, name: e.target.value }))}
-                  className="border-white/10 bg-white/[0.03] text-text-primary"
-                  required
-                />
+            <form onSubmit={addPatient} className="space-y-4">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2 sm:col-span-2">
+                  <Label htmlFor="patient-name">Full name</Label>
+                  <Input
+                    id="patient-name"
+                    value={addForm.name}
+                    onChange={(e) => setAddForm((f) => ({ ...f, name: e.target.value }))}
+                    className="border-white/10 bg-white/[0.03] text-text-primary"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="patient-age">Age</Label>
+                  <Input
+                    id="patient-age"
+                    type="number"
+                    min="1"
+                    value={addForm.age}
+                    onChange={(e) => setAddForm((f) => ({ ...f, age: e.target.value }))}
+                    className="border-white/10 bg-white/[0.03] text-text-primary"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="patient-gender">Gender</Label>
+                  <Input
+                    id="patient-gender"
+                    value={addForm.gender}
+                    onChange={(e) => setAddForm((f) => ({ ...f, gender: e.target.value }))}
+                    className="border-white/10 bg-white/[0.03] text-text-primary"
+                    required
+                  />
+                </div>
+                <div className="space-y-2 sm:col-span-2">
+                  <Label htmlFor="patient-city">City</Label>
+                  <Input
+                    id="patient-city"
+                    value={addForm.city}
+                    onChange={(e) => setAddForm((f) => ({ ...f, city: e.target.value }))}
+                    className="border-white/10 bg-white/[0.03] text-text-primary"
+                    required
+                  />
+                </div>
+                <div className="space-y-2 sm:col-span-2">
+                  <Label htmlFor="patient-condition">Medical condition</Label>
+                  <Input
+                    id="patient-condition"
+                    value={addForm.predicted_condition}
+                    onChange={(e) =>
+                      setAddForm((f) => ({ ...f, predicted_condition: e.target.value }))
+                    }
+                    className="border-white/10 bg-white/[0.03] text-text-primary"
+                  />
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="patient-age">Age</Label>
-                <Input
-                  id="patient-age"
-                  type="number"
-                  min="1"
-                  value={addForm.age}
-                  onChange={(e) => setAddForm((f) => ({ ...f, age: e.target.value }))}
-                  className="border-white/10 bg-white/[0.03] text-text-primary"
-                  required
-                />
+              {addError && (
+                <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-200">
+                  {addError}
+                </div>
+              )}
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setAddOpen(false)}
+                  className="rounded-lg border border-white/10 px-4 py-2 text-sm text-text-secondary transition hover:bg-white/[0.04] hover:text-text-primary"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={addSaving}
+                  className="rounded-lg bg-cyan-500 px-4 py-2 text-sm font-medium text-[#06121a] transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {addSaving ? "Adding..." : "Add patient"}
+                </button>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="patient-gender">Gender</Label>
-                <Input
-                  id="patient-gender"
-                  value={addForm.gender}
-                  onChange={(e) => setAddForm((f) => ({ ...f, gender: e.target.value }))}
-                  className="border-white/10 bg-white/[0.03] text-text-primary"
-                  required
-                />
-              </div>
-              <div className="space-y-2 sm:col-span-2">
-                <Label htmlFor="patient-city">City</Label>
-                <Input
-                  id="patient-city"
-                  value={addForm.city}
-                  onChange={(e) => setAddForm((f) => ({ ...f, city: e.target.value }))}
-                  className="border-white/10 bg-white/[0.03] text-text-primary"
-                  required
-                />
-              </div>
-              <div className="space-y-2 sm:col-span-2">
-                <Label htmlFor="patient-condition">Medical condition</Label>
-                <Input
-                  id="patient-condition"
-                  value={addForm.predicted_condition}
-                  onChange={(e) => setAddForm((f) => ({ ...f, predicted_condition: e.target.value }))}
-                  className="border-white/10 bg-white/[0.03] text-text-primary"
-                />
-              </div>
-            </div>
-            {addError && (
-              <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-200">
-                {addError}
-              </div>
-            )}
-            <div className="flex justify-end gap-3 pt-2">
-              <button
-                type="button"
-                onClick={() => setAddOpen(false)}
-                className="rounded-lg border border-white/10 px-4 py-2 text-sm text-text-secondary transition hover:bg-white/[0.04] hover:text-text-primary"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={addSaving}
-                className="rounded-lg bg-cyan-500 px-4 py-2 text-sm font-medium text-[#06121a] transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {addSaving ? "Adding..." : "Add patient"}
-              </button>
-            </div>
-          </form>
+            </form>
           </div>
         </div>
       )}
