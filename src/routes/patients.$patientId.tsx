@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   Heart, Wind, Gauge, Thermometer, Droplet, Activity, AlertTriangle,
@@ -18,7 +18,6 @@ import { PatientAlertFeed } from "@/components/vivre/PatientAlertFeed";
 
 function BellIconForSeverity(sev?: string) {
   if (sev === "critical") return AlertTriangle;
-  if (sev === "warning") return Activity;
   return Activity;
 }
 
@@ -35,31 +34,154 @@ const LABEL_MAP: Record<string, string> = {
   heart_rate: "Heart Rate", spo2: "SpO₂", blood_pressure: "Blood Pressure",
   temperature: "Temperature", glucose: "Glucose", respiratory_rate: "Respiratory",
 };
+const UNIT_MAP: Record<string, string> = {
+  heart_rate: "bpm", spo2: "%", blood_pressure: "mmHg",
+  temperature: "°C", glucose: "mg/dL", respiratory_rate: "/min",
+};
 const ANIM_MAP: Record<string, "heartbeat" | "breathe" | "none"> = {
   heart_rate: "heartbeat", spo2: "breathe", blood_pressure: "none",
   temperature: "none", glucose: "none", respiratory_rate: "none",
 };
 
+type Status = "ok" | "warn" | "crit";
+function statusFor(metric: string, value: number): Status {
+  if (value == null || isNaN(value)) return "ok";
+  switch (metric) {
+    case "heart_rate":
+      if (value < 50 || value > 120) return "crit";
+      if (value > 100) return "warn";
+      return "ok";
+    case "spo2":
+      if (value < 90) return "crit";
+      if (value < 94) return "warn";
+      return "ok";
+    case "blood_pressure":
+      if (value > 180) return "crit";
+      if (value > 160) return "warn";
+      return "ok";
+    case "temperature":
+      if (value >= 39 || value < 35) return "crit";
+      if (value >= 38) return "warn";
+      return "ok";
+    case "glucose":
+      if (value > 250 || value < 60) return "crit";
+      if (value > 180) return "warn";
+      return "ok";
+    case "respiratory_rate":
+      if (value < 10 || value > 28) return "crit";
+      if (value < 12 || value > 24) return "warn";
+      return "ok";
+  }
+  return "ok";
+}
+
+function adherenceToScore(s?: string | null): number {
+  switch ((s ?? "").toLowerCase()) {
+    case "excellent": return 100;
+    case "good": return 75;
+    case "moderate": return 50;
+    case "low": return 25;
+    default: return 0;
+  }
+}
+
+function buildVitals(row: any) {
+  if (!row) return [];
+  const out: any[] = [];
+  if (row.heart_rate != null) {
+    const v = Number(row.heart_rate);
+    out.push({ metric: "heart_rate", value: Math.round(v), status: statusFor("heart_rate", v) });
+  }
+  if (row.spo2 != null) {
+    const v = Number(row.spo2);
+    out.push({ metric: "spo2", value: Math.round(v), status: statusFor("spo2", v) });
+  }
+  if (row.systolic_bp != null && row.diastolic_bp != null) {
+    const sys = Number(row.systolic_bp), dia = Number(row.diastolic_bp);
+    out.push({
+      metric: "blood_pressure",
+      value: Math.round(sys),
+      displayValue: `${Math.round(sys)}/${Math.round(dia)}`,
+      status: statusFor("blood_pressure", sys),
+    });
+  }
+  if (row.body_temp != null) {
+    const v = Number(row.body_temp);
+    out.push({ metric: "temperature", value: v, status: statusFor("temperature", v), decimals: 1 });
+  }
+  if (row.glucose_level != null) {
+    const v = Number(row.glucose_level);
+    out.push({ metric: "glucose", value: Math.round(v), status: statusFor("glucose", v) });
+  }
+  if (row.respiratory_rate != null) {
+    const v = Number(row.respiratory_rate);
+    out.push({ metric: "respiratory_rate", value: Math.round(v), status: statusFor("respiratory_rate", v) });
+  }
+  return out;
+}
+
+function buildLifestyle(row: any) {
+  if (!row) return [];
+  return [
+    { label: "Sleep quality", value: Math.round((Number(row.sleep_quality) || 0) * 10) },
+    { label: "Stress level", value: Math.round((Number(row.stress_level) || 0) * 10), invert: true },
+    { label: "Activity score", value: Math.round(Number(row.activity_score) || 0) },
+    { label: "Hydration", value: Math.round(Number(row.hydration_level) || 0) },
+    { label: "Medication adherence", value: adherenceToScore(row.medication_adherence) },
+  ];
+}
+
 function PatientDetail() {
   const { patientId } = Route.useParams();
   const patient = useQuery({ queryKey: ["patient", patientId], queryFn: () => api.getPatient(patientId) });
-  const vitals = useQuery({ queryKey: ["vitals", patientId], queryFn: () => api.getVitals(patientId) });
-  const alerts = useQuery({ queryKey: ["alerts", patientId], queryFn: () => api.getAlerts(patientId) });
-  const trend = useQuery({ queryKey: ["trend", patientId], queryFn: () => api.getHealthTrend(patientId) });
-  const lifestyle = useQuery({ queryKey: ["lifestyle", patientId], queryFn: () => api.getLifestyle(patientId) });
+
+  const [latestRow, setLatestRow] = useState<any | null>(null);
+  const [trendRows, setTrendRows] = useState<{ timestamp: string; health_score: number }[]>([]);
+  const [alertRows, setAlertRows] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [range, setRange] = useState<"6h" | "24h" | "7d">("24h");
 
   const seenAlertIds = useRef<Set<string>>(new Set());
-  useEffect(() => {
-    for (const a of alerts.data ?? []) seenAlertIds.current.add(a.id);
-  }, [alerts.data]);
 
+  // initial load
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      const [latestRes, trendRes, alertsRes] = await Promise.all([
+        supabase.from("vitals_readings").select("*").eq("patient_id", patientId)
+          .order("timestamp", { ascending: false }).limit(1),
+        supabase.from("vitals_readings").select("health_score,timestamp").eq("patient_id", patientId)
+          .order("timestamp", { ascending: false }).limit(288),
+        supabase.from("alerts").select("*").eq("patient_id", patientId)
+          .order("created_at", { ascending: false }).limit(20),
+      ]);
+      if (cancelled) return;
+      setLatestRow(latestRes.data?.[0] ?? null);
+      setTrendRows(((trendRes.data ?? []) as any[]).slice().reverse());
+      const alerts = (alertsRes.data ?? []) as any[];
+      setAlertRows(alerts);
+      seenAlertIds.current = new Set(alerts.map((a) => a.id));
+      setLoading(false);
+    })();
+    return () => { cancelled = true; };
+  }, [patientId]);
+
+  // realtime
   useEffect(() => {
     const ch = supabase
       .channel(`patient-${patientId}`)
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "vitals_readings", filter: `patient_id=eq.${patientId}` },
-        () => { vitals.refetch(); trend.refetch(); patient.refetch(); }
+        (payload: any) => {
+          const row = payload?.new;
+          if (!row) return;
+          setLatestRow(row);
+          if (row.health_score != null && row.timestamp) {
+            setTrendRows((prev) => [...prev, { health_score: Number(row.health_score), timestamp: row.timestamp }].slice(-2016));
+          }
+        }
       )
       .on(
         "postgres_changes",
@@ -68,31 +190,48 @@ function PatientDetail() {
           const row = payload?.new ?? {};
           if (row.id && seenAlertIds.current.has(row.id)) return;
           if (row.id) seenAlertIds.current.add(row.id);
+          setAlertRows((prev) => [row, ...prev].slice(0, 20));
           const isCrit = row.severity === "critical";
-          const Icon = isCrit ? AlertTriangle : BellIconForSeverity(row.severity);
+          const Icon = BellIconForSeverity(row.severity);
           toast(row.message ?? "New alert", {
             description: "just now",
             duration: isCrit ? Infinity : 5000,
             icon: <Icon className="h-4 w-4" style={{ color: isCrit ? "#EF4444" : row.severity === "warning" ? "#F59E0B" : "#06B6D4" }} />,
           });
-          alerts.refetch();
         }
       )
       .subscribe();
     return () => { supabase.removeChannel(ch); };
-  }, [patientId, vitals, alerts, trend, patient]);
+  }, [patientId]);
 
-  const ack = async (id: string) => { await api.acknowledgeAlert(id); alerts.refetch(); };
+  const ack = async (id: string) => {
+    setAlertRows((prev) => prev.map((a) => (a.id === id ? { ...a, acknowledged: true } : a)));
+    await supabase.from("alerts").update({ acknowledged: true }).eq("id", id);
+  };
+
+  const vitals = useMemo(() => buildVitals(latestRow), [latestRow]);
+  const lifestyle = useMemo(() => buildLifestyle(latestRow), [latestRow]);
+
+  const trendData = useMemo(() => {
+    const now = Date.now();
+    const windowMs = range === "6h" ? 6 * 3600e3 : range === "24h" ? 24 * 3600e3 : 7 * 24 * 3600e3;
+    return trendRows
+      .filter((r) => r.timestamp && now - new Date(r.timestamp).getTime() <= windowMs)
+      .map((r) => ({
+        ts: new Date(r.timestamp).getTime(),
+        score: Math.round(Number(r.health_score) || 0),
+      }));
+  }, [trendRows, range]);
 
   const p = patient.data;
-  const score = Math.round(p?.health_score ?? 0);
+  const score = Math.round(latestRow?.health_score ?? p?.health_score ?? 0);
   const scoreColor =
     score < 40 ? "#EF4444" :
     score < 60 ? "#F59E0B" :
     score < 75 ? "#3B82F6" :
     score < 90 ? "#10B981" : "#06B6D4";
-  const lastUpdated = p?.updated_at
-    ? new Date(p.updated_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+  const lastUpdated = latestRow?.timestamp
+    ? new Date(latestRow.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
     : "just now";
 
   return (
@@ -134,12 +273,12 @@ function PatientDetail() {
                   )}
                 </p>
                 <div className="mt-4 flex flex-wrap items-center gap-2">
-                  {p?.predicted_condition && (
+                  {(latestRow?.predicted_disease ?? p?.predicted_condition) && (
                     <span
                       className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-medium"
                       style={{ background: "rgba(139,92,246,0.15)", border: "0.5px solid rgba(139,92,246,0.4)", color: "#c4b5fd" }}
                     >
-                      <Shield className="h-3 w-3" /> {p.predicted_condition}
+                      <Shield className="h-3 w-3" /> {latestRow?.predicted_disease ?? p?.predicted_condition}
                     </span>
                   )}
                   <span className="inline-flex items-center gap-1.5 text-[11px] text-text-secondary">
@@ -184,7 +323,7 @@ function PatientDetail() {
           initial="hidden" animate="show"
           className="grid grid-cols-2 gap-3 md:grid-cols-3"
         >
-          {(vitals.data ?? []).map((v: any) => {
+          {vitals.map((v: any) => {
             const Icon = ICON_MAP[v.metric] ?? Activity;
             return (
               <motion.div key={v.metric} variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } }}>
@@ -192,34 +331,40 @@ function PatientDetail() {
                   icon={Icon}
                   label={LABEL_MAP[v.metric] ?? v.metric}
                   value={v.value}
-                  unit={v.unit}
+                  unit={UNIT_MAP[v.metric] ?? ""}
                   status={v.status}
-                  trend={v.trend ?? 0}
-                  decimals={v.metric === "temperature" ? 1 : 0}
+                  trend={0}
+                  decimals={v.decimals ?? 0}
                   iconAnimation={ANIM_MAP[v.metric]}
-                  history={v.history ?? []}
+                  history={[]}
                 />
               </motion.div>
             );
           })}
-          {vitals.isLoading && Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-40 rounded-2xl" />)}
+          {loading && vitals.length === 0 && Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-40 rounded-2xl" />)}
         </motion.div>
       </section>
 
       {/* TREND CHART */}
       <section className="mt-8 rounded-2xl glass p-5">
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-xs font-semibold uppercase tracking-widest text-text-secondary">Health score · 24h</h2>
+          <h2 className="text-xs font-semibold uppercase tracking-widest text-text-secondary">Health score · {range}</h2>
           <div className="flex gap-1 rounded-xl bg-white/5 p-1 text-[11px]">
-            {["6h", "24h", "7d"].map((r, i) => (
-              <button key={r} className={`rounded-lg px-2.5 py-1 ${i === 1 ? "bg-cyan-500/20 text-cyan-300" : "text-text-secondary"}`}>{r}</button>
+            {(["6h", "24h", "7d"] as const).map((r) => (
+              <button
+                key={r}
+                onClick={() => setRange(r)}
+                className={`rounded-lg px-2.5 py-1 ${range === r ? "bg-cyan-500/20 text-cyan-300" : "text-text-secondary"}`}
+              >
+                {r}
+              </button>
             ))}
           </div>
         </div>
         <div className="h-56">
-          {trend.data && (
+          {trendData.length > 0 && (
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={trend.data}>
+              <AreaChart data={trendData}>
                 <defs>
                   <linearGradient id="trendFill" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stopColor="#06B6D4" stopOpacity={0.5} />
@@ -227,11 +372,24 @@ function PatientDetail() {
                   </linearGradient>
                 </defs>
                 <CartesianGrid stroke="rgba(255,255,255,0.05)" />
-                <XAxis dataKey="t" tick={{ fill: "#8892A4", fontSize: 10 }} stroke="rgba(255,255,255,0.1)" />
+                <XAxis
+                  dataKey="ts"
+                  type="number"
+                  domain={["dataMin", "dataMax"]}
+                  scale="time"
+                  tickFormatter={(t: number) =>
+                    range === "7d"
+                      ? new Date(t).toLocaleDateString([], { month: "short", day: "numeric" })
+                      : new Date(t).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+                  }
+                  tick={{ fill: "#8892A4", fontSize: 10 }}
+                  stroke="rgba(255,255,255,0.1)"
+                />
                 <YAxis domain={[0, 100]} tick={{ fill: "#8892A4", fontSize: 10 }} stroke="rgba(255,255,255,0.1)" />
                 <Tooltip
                   contentStyle={{ background: "#162035", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, fontSize: 12 }}
                   labelStyle={{ color: "#8892A4" }}
+                  labelFormatter={(t: number) => new Date(t).toLocaleString()}
                 />
                 <Area
                   type="monotone"
@@ -253,7 +411,7 @@ function PatientDetail() {
       <section className="mt-8 rounded-2xl glass p-5">
         <h2 className="mb-4 text-xs font-semibold uppercase tracking-widest text-text-secondary">Lifestyle</h2>
         <div className="space-y-3">
-          {(lifestyle.data ?? []).map((m: any) => {
+          {lifestyle.map((m: any) => {
             const v = m.invert ? 100 - m.value : m.value;
             const color = v > 75 ? "#10B981" : v > 50 ? "#06B6D4" : v > 30 ? "#F59E0B" : "#EF4444";
             return (
@@ -265,7 +423,7 @@ function PatientDetail() {
                 <div className="h-2 overflow-hidden rounded-full bg-white/5">
                   <motion.div
                     initial={{ width: 0 }}
-                    animate={{ width: `${m.value}%` }}
+                    animate={{ width: `${Math.max(0, Math.min(100, m.value))}%` }}
                     transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
                     className="h-full rounded-full"
                     style={{ background: `linear-gradient(90deg, ${color}, ${color}cc)`, boxShadow: `0 0 12px ${color}80` }}
@@ -277,7 +435,7 @@ function PatientDetail() {
         </div>
       </section>
 
-      <PatientAlertFeed alerts={alerts.data ?? []} onAck={ack} />
+      <PatientAlertFeed alerts={alertRows as any} onAck={ack} />
 
       <Chatbot patientId={patientId} />
     </div>
