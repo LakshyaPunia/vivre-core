@@ -120,3 +120,68 @@ function DoctorsPage() {
     </div>
   );
 }
+
+function LiveVitalsSidebar() {
+  const [hr, setHr] = useState<number | null>(null);
+  const [spo2, setSpo2] = useState<number | null>(null);
+  const [bp, setBp] = useState<string | null>(null);
+  const [temp, setTemp] = useState<number | null>(null);
+  const [patientId, setPatientId] = useState<string | null>(null);
+
+  useEffect(() => {
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    let cancelled = false;
+
+    const apply = (row: any) => {
+      if (row.heart_rate != null) setHr(Math.round(row.heart_rate));
+      if (row.spo2 != null) setSpo2(Math.round(row.spo2));
+      if (row.systolic_bp != null && row.diastolic_bp != null) {
+        setBp(`${Math.round(row.systolic_bp)}/${Math.round(row.diastolic_bp)}`);
+      }
+      if (row.body_temp != null) setTemp(Number(row.body_temp));
+    };
+
+    (async () => {
+      // Get most recently active patient
+      const { data: latest } = await supabase
+        .from("vitals_readings")
+        .select("patient_id")
+        .order("timestamp", { ascending: false })
+        .limit(1);
+      const id = latest?.[0]?.patient_id;
+      if (!id || cancelled) return;
+      setPatientId(id);
+
+      const { data: row } = await supabase
+        .from("vitals_readings")
+        .select("heart_rate,spo2,systolic_bp,diastolic_bp,body_temp")
+        .eq("patient_id", id)
+        .order("timestamp", { ascending: false })
+        .limit(1);
+      if (row?.[0] && !cancelled) apply(row[0]);
+
+      channel = supabase
+        .channel(`call-vitals-${id}`)
+        .on(
+          "postgres_changes",
+          { event: "INSERT", schema: "public", table: "vitals_readings", filter: `patient_id=eq.${id}` },
+          (payload) => apply(payload.new),
+        )
+        .subscribe();
+    })();
+
+    return () => {
+      cancelled = true;
+      if (channel) supabase.removeChannel(channel);
+    };
+  }, []);
+
+  return (
+    <ul className="mt-3 space-y-2 text-sm">
+      <li className="flex justify-between"><span className="text-text-secondary">Heart rate</span><span className="font-mono">{hr ?? "—"} bpm</span></li>
+      <li className="flex justify-between"><span className="text-text-secondary">SpO₂</span><span className="font-mono">{spo2 ?? "—"} %</span></li>
+      <li className="flex justify-between"><span className="text-text-secondary">BP</span><span className="font-mono">{bp ?? "—"} mmHg</span></li>
+      <li className="flex justify-between"><span className="text-text-secondary">Temp</span><span className="font-mono">{temp != null ? temp.toFixed(1) : "—"} °C</span></li>
+    </ul>
+  );
+}
