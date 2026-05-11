@@ -262,7 +262,7 @@ function Dashboard() {
         transition={{ type: "spring", stiffness: 300, damping: 18, delay: 0.6 }}
         whileHover={{ scale: 1.08 }}
         whileTap={{ scale: 0.92 }}
-        className="fixed bottom-44 left-4 z-40 flex items-center gap-2 rounded-full bg-cyan-500 px-4 py-3 text-sm font-medium text-[#06121a] shadow-[0_8px_24px_rgba(6,182,212,0.45)] md:bottom-6"
+        className="fixed bottom-44 left-4 z-50 flex items-center gap-2 rounded-full bg-cyan-500 px-4 py-3 text-sm font-medium text-[#06121a] shadow-[0_8px_24px_rgba(6,182,212,0.45)] md:bottom-6 md:left-auto md:right-24"
       >
         <Plus className="h-4 w-4" /> Add patient
       </motion.button>
