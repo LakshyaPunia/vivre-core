@@ -1,7 +1,8 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { MessageSquare, Send, Sparkles, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { api } from "@/lib/api";
+
+const API_BASE = "https://vivre-production.up.railway.app";
 
 const SUGGESTIONS = [
   "How is she doing today?",
@@ -28,7 +29,12 @@ export function Chatbot({ patientId }: { patientId?: string }) {
     setInput("");
     setSending(true);
     try {
-      const res = await api.chat(text, patientId);
+      const r = await fetch(`${API_BASE}/api/v1/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: text, patient_id: patientId }),
+      });
+      const res = r.ok ? await r.json() : null;
       const reply = res?.message ?? res?.reply ?? "I'm here, but my brain is offline right now.";
       setMessages((m) => [...m, { role: "assistant", content: String(reply) }]);
     } catch {
