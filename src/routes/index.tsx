@@ -69,7 +69,7 @@ function decoratePatient(p: any, vitals: any[], alerts: any[]) {
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Vivre — Dashboard" },
+      { title: "Vivre: Live Care Monitor" },
       { name: "description", content: "Live overview of everyone you care about." },
     ],
   }),
